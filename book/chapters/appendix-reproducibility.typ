@@ -14,6 +14,6 @@
   caption: [D2Q9 平衡分布的完整确定性输出],
 )
 
-源文件：`docs/assets/generated/d2q9-equilibrium.csv`。
+源文件：`book/assets/generated/d2q9-equilibrium.csv`。
 
 生成程序：`examples/d2q9-equilibrium/src/main.rs`。

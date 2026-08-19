@@ -16,37 +16,39 @@
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[B]
 #index-entry([BGK collision], [BGK 碰撞], <collision-streaming>)
+#index-entry([Boltzmann equation], [玻尔兹曼方程], <boltzmann-equation>)
 #index-entry([Boundary condition], [边界条件], <fluid-boundaries>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[C]
-#index-entry([Continuity equation], [连续性方程], <conservation>)
+#index-entry([Continuity equation], [连续性方程], <mass-conservation>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[D]
+#index-entry([D1Q3], [D1Q3 一维三速模型], <d1q3>)
 #index-entry([D2Q9], [D2Q9 离散速度模型], <d2q9>)
-#index-entry([Distribution function], [分布函数], <distribution>)
+#index-entry([Distribution function], [分布函数], <boltzmann-equation>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[E]
 #index-entry([Equilibrium distribution], [平衡分布], <equilibrium>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[F]
 #index-entry([Fluid flow], [流体流动], <fluid-flow>)
-
-#heading(level: 2, numbering: none, outlined: false, bookmarked: false)[K]
-#index-entry([Knudsen number], [努森数], <dimensionless>)
+#index-entry([Flow classification], [流动分类], <flow-classification>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[L]
 #index-entry([Lattice Boltzmann Method], [格子玻尔兹曼方法], <lbm>)
 #index-entry([Lattice unit], [格子单位], <d2q9>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[M]
-#index-entry([Mach number], [马赫数], <dimensionless>)
+#index-entry([Mach number], [马赫数], <flow-classification>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[N]
-#index-entry([Navier–Stokes equation], [纳维–斯托克斯方程], <conservation>)
+#index-entry([Navier–Stokes equation], [纳维–斯托克斯方程], <navier-stokes>)
+#index-entry([Numerical methods], [流体数值方法], <numerical-models>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[R]
 #index-entry([Reproducible data], [可复现数据], <reproducible-data>)
-#index-entry([Reynolds number], [雷诺数], <dimensionless>)
+#index-entry([Reduced model], [简化流动模型], <reduced-models>)
+#index-entry([Reynolds number], [雷诺数], <flow-classification>)
 #index-entry([Rust implementation], [Rust 实现], <rust-implementation>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[S]

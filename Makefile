@@ -3,7 +3,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 PDF := build/lbm-rust.pdf
-GENERATED_DATA := docs/assets/generated/d2q9-equilibrium.csv
+GENERATED_DATA := book/assets/generated/d2q9-equilibrium.csv
 
 .PHONY: help pdf regenerate rust-check punctuation-check check-generated check
 
@@ -19,7 +19,7 @@ help:
 pdf:
 	set -eu
 	mkdir -p build
-	typst compile --root . docs/main.typ "$(PDF)"
+	typst compile --root . book/main.typ "$(PDF)"
 
 regenerate:
 	set -eu
@@ -36,7 +36,7 @@ rust-check:
 punctuation-check:
 	set -eu
 	if rg --line-number '[\p{Han}][,;:!?()]|[,;:!?()][\p{Han}]' \
-		README.md CONTRIBUTING.md docs crates examples \
+		README.md CONTRIBUTING.md book docs crates examples \
 		--glob '*.md' --glob '*.typ' --glob '*.rs'; then
 		echo "检测到与中文字符相邻的半角标点。" >&2
 		exit 1
