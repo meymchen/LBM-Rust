@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "crates/lbm-core",
+    "examples/d2q9-equilibrium",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/meymchen/LBM-Rust"
+
+[workspace.lints.rust]
+missing_docs = "warn"
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"

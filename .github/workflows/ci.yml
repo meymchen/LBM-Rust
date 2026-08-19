@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Run Rust checks
+        run: make rust-check
+
+  document:
+    name: Typst document
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Typst
+        uses: typst-community/setup-typst@v4
+      - name: Install CJK fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes fonts-noto-cjk
+      - name: Verify generated data
+        run: make check-generated
+      - name: Check Chinese punctuation
+        run: make punctuation-check
+      - name: Build PDF
+        run: make pdf
+      - name: Upload PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: lbm-rust-pdf
+          path: build/lbm-rust.pdf
+          if-no-files-found: error

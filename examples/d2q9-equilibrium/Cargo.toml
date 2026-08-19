@@ -1,0 +1,14 @@
+[package]
+name = "d2q9-equilibrium"
+version = "0.1.0"
+description = "Generate deterministic D2Q9 equilibrium data for the documentation"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lbm-core = { path = "../../crates/lbm-core" }
+
+[lints]
+workspace = true

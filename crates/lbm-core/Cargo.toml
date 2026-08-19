@@ -1,0 +1,10 @@
+[package]
+name = "lbm-core"
+version = "0.1.0"
+description = "Rust best practices and accelerated computing experiments for the Lattice Boltzmann Method"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
