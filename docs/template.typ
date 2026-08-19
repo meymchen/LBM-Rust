@@ -1,3 +1,10 @@
+#let equation-prefix = state("equation-prefix", none)
+
+#let equation-scope(prefix) = {
+  equation-prefix.update(prefix)
+  counter(math.equation).update(0)
+}
+
 #let project(title: none, subtitle: none, authors: (), body) = {
   set document(title: title, author: authors)
   set page(
@@ -12,6 +19,24 @@
   )
   set par(justify: true, leading: 0.75em)
   set heading(numbering: "1.1")
+  set math.equation(numbering: number => context {
+    let prefix = equation-prefix.get()
+    if prefix == none {
+      panic("公式块所在的无编号区域未定义公式编号前缀")
+    }
+    [(#prefix.#number)]
+  })
+  show heading.where(level: 1): it => context {
+    if it.numbering == none {
+      equation-prefix.update(none)
+      counter(math.equation).update(0)
+    } else {
+      let prefix = numbering(it.numbering, ..counter(heading).get())
+      equation-prefix.update(prefix)
+      counter(math.equation).update(0)
+    }
+    it
+  }
   show raw.where(block: true): content => block(
     fill: rgb("f5f7fa"),
     inset: 10pt,

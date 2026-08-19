@@ -6,8 +6,10 @@
   authors: ("LBM-Rust Contributors",),
 )
 
+#include "chapters/preface.typ"
+#counter(heading).update(0)
 #include "chapters/01-introduction.typ"
 #include "chapters/02-foundations.typ"
-#include "chapters/03-computer-practice.typ"
-#include "chapters/04-reproducibility.typ"
-#include "chapters/05-contributing.typ"
+#include "chapters/appendix-reproducibility.typ"
+#include "chapters/references.typ"
+#include "chapters/index.typ"
