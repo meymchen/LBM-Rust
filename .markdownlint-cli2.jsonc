@@ -1,0 +1,18 @@
+{
+  "config": {
+    // Documentation often includes long URLs and code examples.
+    "MD013": false
+  },
+  "ignores": [
+    "docs/agents/**/*.md"
+  ],
+  "overrides": [
+    {
+      "filter": ["AGENTS.md"],
+      "config": {
+        "MD041": false
+      },
+      "combine": "merge"
+    }
+  ]
+}
