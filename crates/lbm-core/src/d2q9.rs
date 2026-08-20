@@ -1,4 +1,4 @@
-/// 二维九速度（D2Q9）格子模型。
+/// 二维九速（D2Q9）离散速度模型。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct D2Q9;
 
@@ -6,8 +6,8 @@ impl D2Q9 {
     /// 离散速度的数量。
     pub const Q: usize = 9;
 
-    /// 离散速度，顺序为静止、轴向和对角方向。
-    pub const DIRECTIONS: [[i8; 2]; Self::Q] = [
+    /// 离散速度，顺序为静止、轴向和对角速度。
+    pub const VELOCITIES: [[i8; 2]; Self::Q] = [
         [0, 0],
         [1, 0],
         [0, 1],
@@ -19,7 +19,7 @@ impl D2Q9 {
         [1, -1],
     ];
 
-    /// 与 [`Self::DIRECTIONS`] 一一对应的格子权重。
+    /// 与 [`Self::VELOCITIES`] 一一对应的格子权重。
     pub const WEIGHTS: [f64; Self::Q] = [
         4.0 / 9.0,
         1.0 / 9.0,
@@ -46,9 +46,9 @@ pub fn equilibrium(density: f64, velocity: [f64; 2]) -> [f64; D2Q9::Q] {
     let velocity_squared = velocity[0].mul_add(velocity[0], velocity[1] * velocity[1]);
 
     std::array::from_fn(|index| {
-        let direction = D2Q9::DIRECTIONS[index];
-        let direction_dot_velocity =
-            f64::from(direction[0]).mul_add(velocity[0], f64::from(direction[1]) * velocity[1]);
+        let discrete_velocity = D2Q9::VELOCITIES[index];
+        let direction_dot_velocity = f64::from(discrete_velocity[0])
+            .mul_add(velocity[0], f64::from(discrete_velocity[1]) * velocity[1]);
 
         D2Q9::WEIGHTS[index]
             * density
@@ -76,8 +76,8 @@ mod tests {
 
         for (left, right) in [(1, 3), (2, 4), (5, 7), (6, 8)] {
             assert_eq!(
-                D2Q9::DIRECTIONS[left],
-                D2Q9::DIRECTIONS[right].map(|component| -component)
+                D2Q9::VELOCITIES[left],
+                D2Q9::VELOCITIES[right].map(|component| -component)
             );
             assert_close(D2Q9::WEIGHTS[left], D2Q9::WEIGHTS[right]);
         }
@@ -87,27 +87,27 @@ mod tests {
     fn equilibrium_recovers_density_and_momentum() {
         let density = 1.17;
         let velocity = [0.08, -0.03];
-        let populations = equilibrium(density, velocity);
+        let distributions = equilibrium(density, velocity);
 
-        assert_close(populations.iter().sum(), density);
+        assert_close(distributions.iter().sum(), density);
 
-        for axis in 0..2 {
-            let momentum: f64 = populations
+        for (axis, expected_velocity) in velocity.iter().enumerate() {
+            let momentum: f64 = distributions
                 .iter()
-                .zip(D2Q9::DIRECTIONS)
-                .map(|(population, direction)| population * f64::from(direction[axis]))
+                .zip(D2Q9::VELOCITIES)
+                .map(|(distribution, velocity)| distribution * f64::from(velocity[axis]))
                 .sum();
-            assert_close(momentum, density * velocity[axis]);
+            assert_close(momentum, density * expected_velocity);
         }
     }
 
     #[test]
     fn equilibrium_at_rest_is_isotropic() {
         let density = 0.93;
-        let populations = equilibrium(density, [0.0, 0.0]);
+        let distributions = equilibrium(density, [0.0, 0.0]);
 
-        for (population, weight) in populations.iter().zip(D2Q9::WEIGHTS) {
-            assert_close(*population, density * weight);
+        for (distribution, weight) in distributions.iter().zip(D2Q9::WEIGHTS) {
+            assert_close(*distribution, density * weight);
         }
     }
 }

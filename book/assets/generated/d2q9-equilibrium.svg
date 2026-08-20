@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="440" viewBox="0 0 920 440">
+  <title id="title">D2Q9 平衡分布</title>
+  <desc id="description">密度 1.00，宏观速度 (0.08, 0.02) 时的 D2Q9 平衡分布。左图与静止权重比较，右图显示二者的差。</desc>
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  <text x="72" y="25" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="17" font-weight="600" fill="#171d24">(a) 平衡分布与静止权重</text>
+  <text x="522" y="25" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="17" font-weight="600" fill="#171d24">(b) 相对静止权重的偏差</text>
+  <line x1="72.0" y1="350.0" x2="412.0" y2="350.0" stroke="#d8dde5" stroke-width="1"/>
+  <text x="62" y="354.0" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.0</text>
+  <line x1="72.0" y1="291.6" x2="412.0" y2="291.6" stroke="#d8dde5" stroke-width="1"/>
+  <text x="62" y="295.6" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.1</text>
+  <line x1="72.0" y1="233.2" x2="412.0" y2="233.2" stroke="#d8dde5" stroke-width="1"/>
+  <text x="62" y="237.2" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.2</text>
+  <line x1="72.0" y1="174.8" x2="412.0" y2="174.8" stroke="#d8dde5" stroke-width="1"/>
+  <text x="62" y="178.8" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.3</text>
+  <line x1="72.0" y1="116.4" x2="412.0" y2="116.4" stroke="#d8dde5" stroke-width="1"/>
+  <text x="62" y="120.4" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.4</text>
+  <line x1="72.0" y1="58.0" x2="412.0" y2="58.0" stroke="#d8dde5" stroke-width="1"/>
+  <text x="62" y="62.0" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.5</text>
+  <line x1="522.0" y1="329.1" x2="862.0" y2="329.1" stroke="#d8dde5" stroke-width="1"/>
+  <text x="512" y="333.1" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">-0.03</text>
+  <line x1="522.0" y1="287.4" x2="862.0" y2="287.4" stroke="#d8dde5" stroke-width="1"/>
+  <text x="512" y="291.4" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">-0.02</text>
+  <line x1="522.0" y1="245.7" x2="862.0" y2="245.7" stroke="#d8dde5" stroke-width="1"/>
+  <text x="512" y="249.7" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">-0.01</text>
+  <line x1="522.0" y1="204.0" x2="862.0" y2="204.0" stroke="#59636f" stroke-width="1.4"/>
+  <text x="512" y="208.0" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.00</text>
+  <line x1="522.0" y1="162.3" x2="862.0" y2="162.3" stroke="#d8dde5" stroke-width="1"/>
+  <text x="512" y="166.3" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.01</text>
+  <line x1="522.0" y1="120.6" x2="862.0" y2="120.6" stroke="#d8dde5" stroke-width="1"/>
+  <text x="512" y="124.6" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.02</text>
+  <line x1="522.0" y1="78.9" x2="862.0" y2="78.9" stroke="#d8dde5" stroke-width="1"/>
+  <text x="512" y="82.9" text-anchor="end" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#394452">0.03</text>
+  <rect x="72.0" y="58.0" width="340.0" height="292.0" fill="none" stroke="#171d24" stroke-width="1.4"/>
+  <line x1="72.0" y1="350.0" x2="72.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="72.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">0</text>
+  <line x1="114.5" y1="350.0" x2="114.5" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="114.5" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">1</text>
+  <line x1="157.0" y1="350.0" x2="157.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="157.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">2</text>
+  <line x1="199.5" y1="350.0" x2="199.5" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="199.5" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">3</text>
+  <line x1="242.0" y1="350.0" x2="242.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="242.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">4</text>
+  <line x1="284.5" y1="350.0" x2="284.5" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="284.5" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">5</text>
+  <line x1="327.0" y1="350.0" x2="327.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="327.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">6</text>
+  <line x1="369.5" y1="350.0" x2="369.5" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="369.5" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">7</text>
+  <line x1="412.0" y1="350.0" x2="412.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="412.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">8</text>
+  <rect x="522.0" y="58.0" width="340.0" height="292.0" fill="none" stroke="#171d24" stroke-width="1.4"/>
+  <line x1="522.0" y1="350.0" x2="522.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="522.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">0</text>
+  <line x1="564.5" y1="350.0" x2="564.5" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="564.5" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">1</text>
+  <line x1="607.0" y1="350.0" x2="607.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="607.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">2</text>
+  <line x1="649.5" y1="350.0" x2="649.5" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="649.5" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">3</text>
+  <line x1="692.0" y1="350.0" x2="692.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="692.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">4</text>
+  <line x1="734.5" y1="350.0" x2="734.5" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="734.5" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">5</text>
+  <line x1="777.0" y1="350.0" x2="777.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="777.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">6</text>
+  <line x1="819.5" y1="350.0" x2="819.5" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="819.5" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">7</text>
+  <line x1="862.0" y1="350.0" x2="862.0" y2="356.0" stroke="#171d24" stroke-width="1"/>
+  <text x="862.0" y="373.0" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">8</text>
+  <polyline fill="none" stroke="#59636f" stroke-width="1.6" stroke-dasharray="7 5" points="72.0,90.4 114.5,285.1 157.0,285.1 199.5,285.1 242.0,285.1 284.5,333.8 327.0,333.8 369.5,333.8 412.0,333.8 "/>
+  <rect x="68.0" y="86.4" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <rect x="110.5" y="281.1" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <rect x="153.0" y="281.1" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <rect x="195.5" y="281.1" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <rect x="238.0" y="281.1" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <rect x="280.5" y="329.8" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <rect x="323.0" y="329.8" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <rect x="365.5" y="329.8" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <rect x="408.0" y="329.8" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/>
+  <polyline fill="none" stroke="#1f5a91" stroke-width="2" points="72.0,93.1 114.5,268.3 157.0,281.8 199.5,299.5 242.0,289.5 284.5,328.3 327.0,336.6 369.5,338.1 412.0,330.8 "/>
+  <circle cx="72.0" cy="93.1" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <circle cx="114.5" cy="268.3" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <circle cx="157.0" cy="281.8" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <circle cx="199.5" cy="299.5" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <circle cx="242.0" cy="289.5" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <circle cx="284.5" cy="328.3" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <circle cx="327.0" cy="336.6" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <circle cx="369.5" cy="338.1" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <circle cx="412.0" cy="330.8" r="4.8" fill="#1f5a91" stroke="#ffffff" stroke-width="1"/>
+  <line x1="522.0" y1="204.0" x2="522.0" y2="222.9" stroke="#a74428" stroke-width="2"/>
+  <rect x="518.0" y="218.9" width="8" height="8" fill="#ffffff" stroke="#a74428" stroke-width="1.7"/>
+  <line x1="564.5" y1="204.0" x2="564.5" y2="84.1" stroke="#1f5a91" stroke-width="2"/>
+  <circle cx="564.5" cy="84.1" r="4.8" fill="#1f5a91"/>
+  <line x1="607.0" y1="204.0" x2="607.0" y2="180.1" stroke="#1f5a91" stroke-width="2"/>
+  <circle cx="607.0" cy="180.1" r="4.8" fill="#1f5a91"/>
+  <line x1="649.5" y1="204.0" x2="649.5" y2="306.6" stroke="#a74428" stroke-width="2"/>
+  <rect x="645.5" y="302.6" width="8" height="8" fill="#ffffff" stroke="#a74428" stroke-width="1.7"/>
+  <line x1="692.0" y1="204.0" x2="692.0" y2="235.7" stroke="#a74428" stroke-width="2"/>
+  <rect x="688.0" y="231.7" width="8" height="8" fill="#ffffff" stroke="#a74428" stroke-width="1.7"/>
+  <line x1="734.5" y1="204.0" x2="734.5" y2="165.2" stroke="#1f5a91" stroke-width="2"/>
+  <circle cx="734.5" cy="165.2" r="4.8" fill="#1f5a91"/>
+  <line x1="777.0" y1="204.0" x2="777.0" y2="224.2" stroke="#a74428" stroke-width="2"/>
+  <rect x="773.0" y="220.2" width="8" height="8" fill="#ffffff" stroke="#a74428" stroke-width="1.7"/>
+  <line x1="819.5" y1="204.0" x2="819.5" y2="234.7" stroke="#a74428" stroke-width="2"/>
+  <rect x="815.5" y="230.7" width="8" height="8" fill="#ffffff" stroke="#a74428" stroke-width="1.7"/>
+  <line x1="862.0" y1="204.0" x2="862.0" y2="182.4" stroke="#1f5a91" stroke-width="2"/>
+  <circle cx="862.0" cy="182.4" r="4.8" fill="#1f5a91"/>
+  <line x1="150" y1="43" x2="184" y2="43" stroke="#1f5a91" stroke-width="2"/><circle cx="167" cy="43" r="4.5" fill="#1f5a91"/><text x="192" y="48" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">当前平衡分布</text>
+  <line x1="294" y1="43" x2="328" y2="43" stroke="#59636f" stroke-width="1.6" stroke-dasharray="7 5"/><rect x="307" y="39" width="8" height="8" fill="#ffffff" stroke="#59636f" stroke-width="1.5"/><text x="336" y="48" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">静止权重</text>
+  <circle cx="646" cy="43" r="4.5" fill="#1f5a91"/><text x="658" y="48" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">正偏差</text><rect x="738" y="39" width="8" height="8" fill="#ffffff" stroke="#a74428" stroke-width="1.7"/><text x="754" y="48" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="14" fill="#171d24">负偏差</text>
+  <text x="24" y="204" transform="rotate(-90 24 204)" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="16" fill="#171d24">fᵢᵉᵠ / ρ</text>
+  <text x="474" y="204" transform="rotate(-90 474 204)" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="16" fill="#171d24">(fᵢᵉᵠ − ρwᵢ) / ρ</text>
+  <text x="242.0" y="410" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="16" fill="#171d24">离散速度索引 i</text>
+  <text x="692.0" y="410" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="16" fill="#171d24">离散速度索引 i</text>
+  <text x="460.0" y="432" text-anchor="middle" font-family="Noto Serif CJK SC, Noto Serif, serif" font-size="13" fill="#59636f">ρ = 1.00，u = (0.08, 0.02)</text>
+</svg>

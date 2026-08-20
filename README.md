@@ -17,6 +17,7 @@ LBM-Rust 使用 Rust 学习和实现 Lattice Boltzmann Method（LBM），并使�
 - D2Q9 离散速度、权重和平衡分布函数；
 - 验证归一化、对称性、质量与动量恢复的 Rust 测试；
 - 从 Rust 程序生成确定性文档数据的示例；
+- 使用 Typst 原生矢量图和 Rust 生成数据图的可复现插图；
 - 可生成完整 PDF 样书的模块化 Typst 源码；
 - 同时检查代码、数据和文档的 GitHub Actions。
 
@@ -24,6 +25,7 @@ LBM-Rust 使用 Rust 学习和实现 Lattice Boltzmann Method（LBM），并使�
 
 - 当前稳定版 Rust，包含 `rustfmt` 与 `clippy`；
 - [Typst](https://typst.app/) CLI；
+- CeTZ 0.4.2，由 Typst 在首次构建时下载并缓存；
 - GNU Make；
 - ripgrep，用于检查中文标点；
 - Noto Serif CJK SC 字体。
@@ -39,7 +41,7 @@ make pdf
 
 生成的文档位于 `build/lbm-rust.pdf`。
 
-文档使用仓库中已经生成的数据，因此普通 PDF 构建不会重新运行数值程序。需要更新数据时运行：
+文档使用仓库中已经生成的数据和 SVG，因此普通 PDF 构建不会重新运行数值程序。需要更新生成资产时运行：
 
 ```sh
 make regenerate
@@ -57,6 +59,7 @@ make check
 - `crates/lbm-core`：可复用的 LBM 基础库；
 - `examples/d2q9-equilibrium`：确定性数据生成程序；
 - `book`：可完整出版的 Typst 书稿、章节和生成数据；
+- `book/figures`：可复用的 Typst 图形组件、章节图源和插图维护约定；
 - `docs`：项目维护与代理协作文档；
 - `build`：本地 PDF 与临时输出，不纳入版本控制。
 
