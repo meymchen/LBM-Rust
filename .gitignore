@@ -2,3 +2,6 @@
 /target/
 *.pdf
 *.typst.log
+
+# Scratch files
+.scratch/

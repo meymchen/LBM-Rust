@@ -1,3 +1,7 @@
+## Dev tips
+
+- Store scratch files in `.scratch/`
+
 ## Agent skills
 
 ### Issue tracker
