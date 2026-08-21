@@ -8,7 +8,10 @@
   ],
   "overrides": [
     {
-      "filter": ["AGENTS.md"],
+      "filter": [
+        "AGENTS.md",
+        "CLAUDE.md"
+      ],
       "config": {
         "MD041": false
       },
