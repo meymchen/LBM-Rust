@@ -5,8 +5,11 @@
   counter(math.equation).update(0)
 }
 
-#let project(title: none, subtitle: none, authors: (), body) = {
-  set document(title: title, author: authors)
+#let project(document-title: none, title: none, subtitle: none, authors: (), body) = {
+  set document(
+    title: if document-title == none { title } else { document-title },
+    author: authors,
+  )
   set page(
     paper: "a4",
     margin: (x: 24mm, y: 22mm),
@@ -47,7 +50,7 @@
 
   align(center)[
     #v(30mm)
-    #text(size: 28pt, weight: "bold")[#title]
+    #text(size: 22pt, weight: "bold")[#box[#title]]
     #v(6mm)
     #text(size: 15pt, fill: rgb("465568"))[#subtitle]
     #v(24mm)

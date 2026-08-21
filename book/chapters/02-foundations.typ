@@ -1,377 +1,291 @@
-#import "../figures/lbm-foundations.typ": d1q3, d2q9, lbm-step
-
 #pagebreak(weak: true)
-= 格子玻尔兹曼方法（LBM） <lbm>
+= 从 Boltzmann 方程到流体力学 <boltzmann-equation>
 
-上一章从控制体出发，得到质量守恒和 Navier–Stokes 动量方程，也介绍了直接离散宏观方程的几类方法。本章改用介观视角：不直接把速度和压力作为全部状态，而是在每个格点记录各离散速度对应的离散分布函数。它是统计分布量，不表示逐个粒子的计数。我们先说明这个计算对象如何来自玻尔兹曼方程，再用一维三速模型完成一个最小时间步，最后扩展到 D2Q9 离散速度模型。章末的进阶阅读给出平衡分布、离散速度矩和黏度关系的推导；正文使用到的结论都能在本章内找到依据。
+连续介质力学把密度、速度和压力当作基本未知量。动力学理论换了一个观察尺度：它记录粒子在位置与速度空间中的统计分布，再用速度矩恢复宏观量。这个中间层次正是 LBM 的理论起点。
 
-== 玻尔兹曼方程只表达两件事 <boltzmann-equation>
+本章先约定符号，再讨论输运、碰撞、局部平衡和矩方程。正文给出后续建模必须掌握的结构，章末进阶阅读补全碰撞积分、$H$ 定理和 Chapman–Enskog 展开。这里讨论的是理想单组分气体；非理想相互作用不在本章范围内。
 
-连续动力学理论用 $f(bold(x), bold(xi), t)$ 表示位置 $bold(x)$、微观速度 $bold(xi)$ 和时刻 $t$ 上的分布。忽略外力时，玻尔兹曼方程可简写为
+== 符号与描述层次 <kinetic-notation>
 
-$ partial_t f + bold(xi) dot nabla f = Omega(f). $
+空间维数记为 $d$，位置、微观速度和宏观流速分别写成 $bold(x)$、$bold(xi)$ 和 $bold(u)$。连续速度使用 $bold(xi)$，下一章的离散速度使用 $bold(c)_i$；二者不混用。Cartesian 分量用 Greek 下标表示，例如 $xi_alpha$、$u_alpha$。重复的 Greek 下标默认求和，而离散速度下标 $i$ 的求和始终显式写出。
 
-这条公式在这里不是推导题，只需读成一句话：左侧表示统计分布随微观速度穿过空间，右侧表示同一位置上的碰撞重新分配速度。LBM 将前者变成沿格线移动一步，将后者变成每个格点上的局部更新。
-
-真实碰撞算子 $Omega$ 很复杂。BGK 模型用“当前分布向局部平衡分布靠近”代替完整碰撞细节 @bgk1954：
-
-$ Omega(f) = -1/tau_c (f - f^("eq")). $
-
-$f^("eq")$ 是由当前密度和速度决定的平衡分布，$tau_c$ 控制靠近平衡的快慢。现阶段可把它理解为混合强度；它与黏度的具体关系会在离散模型中给出。
-
-连续分布与上一章宏观量之间的联系由速度矩给出。对全部微观速度积分，得到密度和动量：
-
-$ rho = integral f dif bold(xi), quad rho bold(u) = integral bold(xi) f dif bold(xi). $
-
-碰撞可以重新分配速度空间中的统计分布，却不能改变同一点的总质量；没有外力时也不能改变总动量。因此碰撞项必须满足
-
-$ integral Omega dif bold(xi) = 0, quad integral bold(xi) Omega dif bold(xi) = bold(0). $
-
-这两条矩约束是第一章守恒定律在介观描述中的表达。LBM 把连续速度积分换成对有限个离散速度求和，但仍保留相同约束。
-
-== 为什么最后得到格子方法 <lbm-history>
-
-LBM 的历史也可以看成一条不断简化计算对象的路线：
-
-- 1872 年，Boltzmann 用分布函数和碰撞描述大量分子的统计演化 @boltzmann1872。
-- 1954 年，Bhatnagar、Gross 和 Krook 用单一松弛过程近似复杂碰撞 @bgk1954。
-- 1986 年，Frisch、Hasslacher 和 Pomeau 证明，在具有足够对称性的格子上迁移和碰撞简单粒子，可以恢复流体的宏观行为 @frisch1986。
-- 1988 年，McNamara 和 Zanetti 不再逐个记录只能取“有”或“无”的格子粒子，而是直接演化各离散速度上的统计分布量，从而显著减少统计噪声 @mcnamara1988。
-- 1992 年，Qian、d'Humières 和 Lallemand 给出了简洁的格子 BGK 模型族，其中包括今天常用模型的基本形式 @qian1992。
-
-因此，“格子”让输运成为从一个格点到相邻格点的精确移动，“离散分布函数”避免逐个模拟粒子，“向平衡分布松弛”则把复杂碰撞压缩为便于编程的局部公式。
-
-== 第一个模型：一维三速 D1Q3 <d1q3>
-
-D1Q3 中的 `D1` 表示一维空间，`Q3` 表示三个离散速度。取
-
-$ e_0 = 0, quad e_+ = 1, quad e_- = -1. $
-
-静止分布留在原格，另外两个分布每个时间步分别向右和向左移动一格。对应权重为
-
-$ w_0 = 2/3, quad w_+ = w_- = 1/6. $
-
-每个格点只需保存 $f_0$、$f_+$ 和 $f_-$。@d1q3-diagram 把离散速度与离散分布函数的大小分开编码：箭头只表示速度，柱长才表示分布量。宏观量仍按上一章的方法计算：
-
-#figure(
-  d1q3,
-  caption: [概念示意图：D1Q3 的离散速度与静止平衡分布。],
-) <d1q3-diagram>
-
-$ rho = f_0 + f_+ + f_-, quad rho u = f_+ - f_-. $
-
-在 $rho = 1$、$u = 0$ 的均匀静止状态下，平衡分布就是各权重本身：$f_0^("eq") = 2/3$，$f_+^("eq") = f_-^("eq") = 1/6$。这给出了一个很方便的第一项测试：初始化所有格子后，碰撞和迁移都不应改变均匀状态。
-
-流体运动时，D1Q3 的平衡分布可直接按下面的配方计算：
-
-$ f_i^("eq") = w_i rho [1 + 3 e_i u + 9/2 (e_i u)^2 - 3/2 u^2]. $
-
-把 $i$ 依次换成 $0$、$+$ 和 $-$，并代入各自的速度与权重，就得到三个结果。先检查三个结果之和等于 $rho$、以离散速度加权求和后等于 $rho u$。二维模型会复用完全相同的结构；公式的低马赫数展开见本章进阶阅读。
-
-== 手工走过一个时间步 <d1q3-step>
-
-一个 LBM 时间步只有四个基本动作：
-
-1. 求宏观量：把三个分布相加得到 $rho$，把左右分布相减得到 $rho u$。
-2. 求平衡分布：根据当前 $rho$ 和 $u$ 计算三个 $f_i^("eq")$。
-3. 碰撞：让每个 $f_i$ 向对应的 $f_i^("eq")$ 靠近。
-4. 迁移：$f_+$ 向右移动一格，$f_-$ 向左移动一格，$f_0$ 留在原格。
-
-#figure(
-  lbm-step,
-  caption: [概念示意图：一个 LBM 时间步中的四个动作。],
-) <lbm-step-diagram>
-
-@lbm-step-diagram 应从左向右阅读。求宏观量和平衡分布为碰撞准备局部信息；碰撞只改变当前格点上的分布，迁移才把碰撞后的分布搬到相邻格点。它说明计算顺序，不表示四步具有相同计算成本。
-
-离散碰撞写成
-
-$ f_i^star = f_i - 1/tau (f_i - f_i^("eq")), $
-
-其中星号表示碰撞后、迁移前的值。当 $tau = 1$ 时，碰撞一步就到达平衡；当 $tau > 1$ 时，每一步只靠近一部分。随后执行
-
-$ f_i(x + e_i, t + 1) = f_i^star(x, t). $
-
-读者可以从一个周期边界的一维数组开始：所有格点初始化为静止平衡分布，只提高中央一个格点的密度，然后观察扰动向左右传播。这个实验不需要复杂几何，却能暴露离散速度索引、周期边界、碰撞顺序和质量守恒中的大多数基础错误。
-
-== 从一维扩展到二维 D2Q9 <d2q9>
-
-D2Q9 只是把同一思路扩展到二维：一个静止离散速度、四个轴向离散速度和四个对角离散速度。在格子单位 $Delta x = Delta t = 1$ 下，九个速度为
+本书采用质量分布函数 $f(bold(x), bold(xi), t)$。因此 $f dif bold(xi)$ 是单位物理体积内、微观速度落在 $dif bold(xi)$ 中的质量，宏观密度和动量为
 
 $
-  bold(e)_0 &= (0, 0), \
-  bold(e)_(1..4) &= (1, 0), (0, 1), (-1, 0), (0, -1), \
-  bold(e)_(5..8) &= (1, 1), (-1, 1), (-1, -1), (1, -1).
+rho = integral f dif bold(xi), quad
+rho bold(u) = integral bold(xi) f dif bold(xi).
+$ <continuous-moments>
+
+速度积分覆盖整个 $RR^d$。定义涨落速度（peculiar velocity）
+
+$ bold(C) = bold(xi) - bold(u). $
+
+由于 $bold(u)$ 已是质量加权平均速度，必有 $integral bold(C) f dif bold(xi) = bold(0)$。这个恒等式会消去许多一阶中心矩。
+
+需要区分三类时间尺度。$tau_k$ 表示连续 BGK 方程中的物理松弛时间；$Delta t$ 是数值时间步；下一章的 $overline(tau)$ 是梯形积分后出现在碰撞公式中的离散松弛时间。把它们都写成 $tau$ 会掩盖半时间步修正，也是许多黏度公式错误的来源。
+
+== 自由输运与碰撞 <kinetic-transport>
+
+没有外力时，Boltzmann 输运方程写作
+
+$ partial_t f + bold(xi) dot nabla_bold(x) f = Omega_B[f]. $ <continuous-boltzmann>
+
+左侧是自由输运。若暂时令碰撞项为零，分布沿特征线 $bold(x)(t)=bold(x)_0+bold(xi)t$ 保持不变。右侧的 $Omega_B$ 是碰撞算子，它在同一空间位置重新分配微观速度。
+
+存在单位质量体力 $bold(g)$ 时，粒子在速度空间中也发生平移：
+
 $
+partial_t f + bold(xi) dot nabla_bold(x) f
++ bold(g) dot nabla_bold(xi) f = Omega_B[f].
+$ <forced-boltzmann>
 
-权重为 $w_0 = 4/9$、$w_(1..4) = 1/9$、$w_(5..8) = 1/36$。密度和二维动量仍是简单求和：
+这里 $bold(g)$ 的量纲是加速度，力密度为 $bold(F)=rho bold(g)$。后续离散外力项必须恢复 $bold(F)$ 的一阶矩；仅在平衡速度中随意加一个偏移，通常不能保证二阶精度。
 
-$ rho = sum_i f_i, quad rho bold(u) = sum_i f_i bold(e)_i. $
+稀薄单原子气体的 Boltzmann 碰撞算子建立在五项假设上：二体碰撞、碰撞在时空上局部、弹性碰撞、微观动力学可逆，以及碰撞前两个粒子的速度不相关，即分子混沌假设。碰撞改变单个粒子的速度，却保持碰撞对的质量、动量和动能。
 
-#figure(
-  d2q9,
-  caption: [概念示意图：D2Q9 的索引、离散速度与权重。],
-) <d2q9-diagram>
+完整碰撞积分较昂贵。BGK 模型用单一松弛过程替代它 @bgk1954：
 
-@d2q9-diagram 中的数值直接读取 Rust 生成的 CSV，避免图与实现分别维护两套索引和权重。与 D1Q3 相比，程序结构没有变化，只是每个格点保存的离散分布函数从三个增加到九个。轴向和对角离散速度的对称排列使模型在宏观尺度上不会偏爱某个格线方向。这张图展示速度模板，不代表完整求解器已经实现。
+$
+partial_t f + bold(xi) dot nabla_bold(x) f
+= -1/tau_k [f - f^("eq")], quad tau_k > 0.
+$ <continuous-bgk>
 
-== 把平衡分布当作可验证的计算配方 <equilibrium>
+$f^("eq")$ 不是任意目标函数。它必须与 $f$ 具有相同的质量、动量和能量，否则碰撞会产生这些守恒量。BGK 模型保留了通向流体方程所需的低阶矩结构，但用一个松弛时间控制所有非守恒模态，因此对热流动会固定 Prandtl 数为 1。
 
-D2Q9 常用的等温、低马赫数平衡分布为
+== 碰撞不变量与守恒律 <collision-invariants>
 
-$ f_i^("eq") = w_i rho [1 + 3 (bold(e)_i dot bold(u)) + 9/2 (bold(e)_i dot bold(u))^2 - 3/2 bold(u)^2]. $
+若某个微观量 $phi(bold(xi))$ 在每次弹性二体碰撞前后满足
 
-初学时可以先把它当作输入 $rho$ 和 $bold(u)$、输出九个平衡分布的计算配方。四项分别对应静止权重、速度的一阶影响、离散速度投影的二阶修正和总速度的二阶修正。实现后应立即验证
+$ phi + phi_1 = phi^prime + phi_1^prime, $
 
-$ sum_i f_i^("eq") = rho, quad sum_i f_i^("eq") bold(e)_i = rho bold(u). $
+它就是碰撞不变量。对无内部自由度的单原子粒子，所有碰撞不变量都属于
 
-这两个等式说明平衡化没有改变质量和动量，也是比目测流场更可靠的单元测试。该公式来自连续平衡分布的低速展开和离散速度求积，具体步骤见#ref(<advanced-lbm-derivation>)。
+$ "span" {1, bold(xi), bold(xi)^2}. $
 
-== 碰撞、迁移与黏度 <collision-streaming>
+因此 Boltzmann 碰撞算子满足
 
-把局部碰撞和沿格线迁移合并，可写成
+$
+integral Omega_B dif bold(xi) = 0, quad
+integral bold(xi) Omega_B dif bold(xi) = bold(0), quad
+integral 1/2 bold(xi)^2 Omega_B dif bold(xi) = 0.
+$ <collision-conservation>
 
-$ f_i(bold(x) + bold(e)_i, t + 1) = f_i(bold(x), t) - 1/tau [f_i(bold(x), t) - f_i^("eq")(bold(x), t)]. $
+分别对公式 @continuous-boltzmann 取这三个矩，便得到质量、动量和总能量的局部守恒。由此可见，宏观守恒律不是离散算法额外施加的修补，而是碰撞算子的零空间在宏观尺度上的投影。
 
-这就是前面一维时间步在二维中的写法。D2Q9 的格子声速满足 $c_s^2 = 1/3$，运动黏度为
+== 局部 Maxwell 平衡 <maxwell-equilibrium>
 
-$ nu = c_s^2 (tau - 1/2). $
-
-因此 $tau$ 同时影响碰撞强度和宏观黏度。选择参数时先由目标雷诺数确定格子黏度，再由上式计算 $tau$；不要仅凭“哪个值能运行”来试选。
-
-== 边界条件与逐级验证 <lbm-boundaries>
-
-学习顺序应让每一步只增加一种困难：先用 D1Q3 周期数组检查迁移和守恒，再用 D2Q9 周期区域检查二维离散速度，随后加入平直固壁反弹，最后才处理入口、出口和复杂几何。
-
-对实际流动，推荐依次验证：
-
-- 均匀静止状态保持不变；
-- 平衡分布恢复给定的密度和速度；
-- 周期区域的总质量保持不变；
-- 平直通道流与解析速度分布一致；
-- 网格加密后误差按预期减小。
-
-只有这些基础检查通过后，流场图片和性能数据才有解释价值。
-
-== Rust 实现与可复现数据 <rust-implementation>
-
-LBM-Rust 以清晰的标量实现作为正确性基线，再评估数据布局、多线程、SIMD 和加速后端。核心模型公开 D2Q9 离散速度、权重和平衡分布，并用同一组不变量测试基线与后续优化实现。
-
-当前示例在 $rho = 1$、$bold(u) = (0.08, 0.02)$ 时计算九个离散速度的平衡分布。完整输出见#ref(<reproducible-data>)，原始 CSV 文件位于 `book/assets/generated/d2q9-equilibrium.csv`。
-
-#figure(
-  image("../assets/generated/d2q9-equilibrium.svg", width: 92%),
-  caption: [数据图：$rho = 1$、$bold(u) = (0.08, 0.02)$ 时的 D2Q9 平衡分布、静止权重及二者偏差。数据由 `examples/d2q9-equilibrium` 生成。],
-) <d2q9-equilibrium-plot>
-
-@d2q9-equilibrium-plot 的左面板比较当前平衡分布和静止权重，右面板直接画出二者的偏差。正负偏差揭示宏观速度朝向造成的非对称。图中曲线和标记只记录给定输入下程序生成的确定值；质量与动量恢复仍由数值测试验证，不能仅凭图形外观判断。
-
-维护者可以运行 `make regenerate` 重新计算数据，再用 `make check-generated` 验证仓库中的结果是否与当前代码一致。生成程序位于 `examples/d2q9-equilibrium/src/main.rs`。耗时实验不隐式绑定到普通 PDF 构建，性能结论则应记录硬件、工具链、问题规模和统计方法。
-
-== 进阶阅读：从连续分布到格子方程 <advanced-lbm-derivation>
-
-这一节回答三个容易被入门材料略过的问题：二阶平衡分布从哪里来，为什么九个速度足以恢复质量和动量方程，以及黏度公式中的 $-1/2$ 为什么出现。推导针对等温、低马赫数、单松弛时间模型；热流动、多松弛时间和高阶格子需要更多速度矩，但推导方法相同。
-
-=== 局部平衡分布的低速展开
-
-等温气体在局部平衡时采用 Maxwell 分布。略去不影响后续矩关系的归一化细节，可写为
+对理想单原子气体，给定 $rho$、$bold(u)$ 和温度 $T$ 后，局部平衡分布为
 
 $
 f^("eq")(bold(xi))
-= rho omega(bold(xi))
-  exp((bold(xi) dot bold(u))/c_s^2)
-  exp(-bold(u)^2/(2 c_s^2)),
-$
+= rho/(2 pi R T)^(d/2)
+  exp[-bold(C)^2/(2 R T)].
+$ <maxwell-boltzmann>
 
-其中
+$R$ 是比气体常数。称它为“局部平衡”，是因为 $rho(bold(x),t)$、$bold(u)(bold(x),t)$ 和 $T(bold(x),t)$ 仍可随时空变化。此时碰撞项为零，但自由输运项一般不为零；只有这些参数均匀且稳定时，$f^("eq")$ 才是全局平衡解。
 
-$ omega(bold(xi)) = 1/(2 pi c_s^2)^(d/2) exp(-bold(xi)^2/(2 c_s^2)) $
-
-是 $d$ 维、均值为零的 Gaussian 权函数，$c_s$ 是等温声速。低马赫数意味着 $abs(bold(u))/c_s$ 很小。分别展开两个含 $bold(u)$ 的指数函数：
+Maxwell 分布的低阶矩为
 
 $
-exp((bold(xi) dot bold(u))/c_s^2)
-= 1 + (bold(xi) dot bold(u))/c_s^2
-+ (bold(xi) dot bold(u))^2/(2 c_s^4) + O("Ma"^3),
-$
+integral f^("eq") dif bold(xi) &= rho, \
+integral bold(xi) f^("eq") dif bold(xi) &= rho bold(u), \
+integral bold(C) ⊗ bold(C) f^("eq") dif bold(xi) &= rho R T bold(I).
+$ <maxwell-moments>
 
-$ exp(-bold(u)^2/(2 c_s^2)) = 1 - bold(u)^2/(2 c_s^2) + O("Ma"^4). $
+因此理想气体状态方程为 $p=rho R T$。在等温模型中，$R T$ 是常数，下一章把它记为格子声速平方 $c_s^2$。
 
-相乘并保留到速度的二阶项，得到
+== 矩、通量与封闭问题 <moment-hierarchy>
 
-$
-f^("eq")(bold(xi))
-= rho omega(bold(xi)) [
-  1 + (bold(xi) dot bold(u))/c_s^2
-  + (bold(xi) dot bold(u))^2/(2 c_s^4)
-  - bold(u)^2/(2 c_s^2)
-] + O("Ma"^3).
-$ <continuous-equilibrium-expansion>
+定义二阶中心矩，即动力学压力张量，
 
-这一步解释了离散平衡分布中的四项。它不是针对 D2Q9 猜出的多项式，而是连续平衡分布在低速条件下的截断。
+$ bold(P) = integral bold(C) ⊗ bold(C) f dif bold(xi), $
 
-=== 用有限个速度替代速度积分
+以及热流
 
-接下来要用有限求和近似带有权函数 $omega$ 的速度积分。离散速度 $bold(e)_i$ 和权重 $w_i$ 至少应满足以下各向同性关系：
+$ bold(q) = integral 1/2 bold(C)^2 bold(C) f dif bold(xi). $
 
-$ sum_i w_i = 1, quad sum_i w_i e_(i alpha) = 0, $
-
-$ sum_i w_i e_(i alpha) e_(i beta) = c_s^2 delta_(alpha beta), $
-
-$ sum_i w_i e_(i alpha) e_(i beta) e_(i gamma) = 0, $
+总能量密度为
 
 $
-sum_i w_i e_(i alpha) e_(i beta) e_(i gamma) e_(i delta)
-= c_s^4 [delta_(alpha beta) delta_(gamma delta)
-+ delta_(alpha gamma) delta_(beta delta)
-+ delta_(alpha delta) delta_(beta gamma)].
-$ <isotropy-relations>
-
-这里的 Greek 下标表示 Cartesian 分量，$delta_(alpha beta)$ 是 Kronecker 符号：两个下标相同时为 1，否则为 0。奇数阶矩为零来自速度集合的正负对称；二阶和四阶关系保证格子在这些矩上没有偏爱的方向。
-
-把公式 @continuous-equilibrium-expansion 中的 $bold(xi)$ 换成 $bold(e)_i$，把连续权函数和求积权重合并为 $w_i$，得到一般形式
-
-$
-f_i^("eq") = w_i rho [
-1 + (bold(e)_i dot bold(u))/c_s^2
-+ (bold(e)_i dot bold(u))^2/(2 c_s^4)
-- bold(u)^2/(2 c_s^2)].
-$ <general-discrete-equilibrium>
-
-D2Q9 的 $c_s^2 = 1/3$。代入 $1/c_s^2 = 3$ 和 $1/(2c_s^4) = 9/2$，便得到本章前面使用的平衡分布。
-
-现在直接验证它的前三个矩。使用公式 @isotropy-relations，零阶矩为
-
-$
-sum_i f_i^("eq")
-= rho [1 + bold(u)^2/(2c_s^2) - bold(u)^2/(2c_s^2)]
-= rho.
+rho E=integral 1/2 bold(xi)^2 f dif bold(xi)
+=rho e+1/2 rho bold(u)^2,
 $
 
-一阶矩中，常数项和 $bold(u)^2$ 项乘上奇数阶速度矩后为零，线性项给出
+单原子理想气体的比内能为 $e=d R T/2$。在三维中，$rho$、$rho bold(u)$、对称的 $bold(P)$ 和 $bold(q)$ 合计 13 个独立场，这就是 Grad 13 矩描述所使用的变量组。
 
-$ sum_i e_(i alpha) f_i^("eq") = rho u_alpha. $
+把压力张量分解为
 
-二阶矩使用二阶和四阶各向同性关系，结果是
+$ bold(P) = p bold(I) + bold(Pi)^("neq"), $
 
-$
-Pi_(alpha beta)^("eq")
-:= sum_i e_(i alpha) e_(i beta) f_i^("eq")
-= rho c_s^2 delta_(alpha beta) + rho u_alpha u_beta.
-$ <equilibrium-second-moment>
+其中 $bold(Pi)^("neq")$ 是非平衡压力。使用公式 @collision-conservation，可以从动力学方程精确得到
 
-右侧第一项是各向同性压力，因而等温 LBM 的状态方程为
-
-$ p = rho c_s^2. $ <lbm-equation-of-state>
-
-第二项是宏观动量通量。零阶、一阶和二阶矩分别恢复质量、动量和压力加对流动量，这正是 D2Q9 能连接到宏观流体方程的原因。
-
-=== 从 BGK 方程到碰撞和迁移
-
-把连续速度限制为 $bold(e)_i$ 后，离散速度 BGK 方程为
-
-$ partial_t f_i + bold(e)_i dot nabla f_i = -1/tau_c (f_i - f_i^("eq")). $
-
-沿第 $i$ 个离散速度的特征线满足 $dif bold(x)/dif t = bold(e)_i$。因此左侧是沿该特征线的全导数：
-
-$ (dif f_i)/(dif t) = partial_t f_i + bold(e)_i dot nabla f_i. $
-
-在一个时间步 $Delta t$ 内显式积分碰撞项，并定义无量纲松弛时间 $tau = tau_c/Delta t$，得到
-
-$
-f_i(bold(x) + bold(e)_i Delta t, t + Delta t)
-- f_i(bold(x), t)
-= -1/tau [f_i(bold(x),t) - f_i^("eq")(bold(x),t)].
-$
-
-选择速度集合时让 $bold(e)_i Delta t$ 恰好连接相邻格点，左侧便不是近似的空间插值，而是从一个数组位置精确搬到另一个位置。右侧只依赖当前格点。于是一次更新自然拆成
-
-$ f_i^star = f_i - 1/tau (f_i - f_i^("eq")) $
-
-和
-
-$ f_i(bold(x) + bold(e)_i Delta t,t + Delta t) = f_i^star(bold(x),t). $
-
-前者是局部碰撞，后者是沿格线迁移。对碰撞式求零阶矩和一阶矩，并使用平衡分布与当前分布具有相同的 $rho$ 和 $rho bold(u)$，立即得到
-
-$ sum_i f_i^star = sum_i f_i, quad sum_i bold(e)_i f_i^star = sum_i bold(e)_i f_i. $
-
-因此碰撞严格保持局部质量和动量；迁移只在格点之间搬运这些量。在周期区域中，把所有格点再求和，进入一个格点的分布总能在相邻格点找到对应的流出项，所以全局质量也保持不变。
-
-=== 宏观极限与黏度中的半个时间步
-
-最后说明离散格子方程如何恢复 Navier–Stokes 方程。记沿特征线的微分算子为
-
-$ D_i = partial_t + bold(e)_i dot nabla. $
-
-对格子方程左侧在 $Delta t$ 上作 Taylor 展开到二阶：
-
-$
-Delta t D_i f_i + (Delta t^2)/2 D_i^2 f_i
-= -1/tau (f_i - f_i^("eq")) + O(Delta t^3).
-$ <lbe-taylor>
-
-引入表示宏观尺度缓慢变化的参数 $epsilon$，作 Chapman–Enskog 多尺度展开：
-
-$
-f_i = f_i^("eq") + epsilon f_i^(1) + epsilon^2 f_i^(2) + dots,
-quad nabla = epsilon nabla_1,
-quad partial_t = epsilon partial_(t_1) + epsilon^2 partial_(t_2).
-$
-
-碰撞守恒要求非平衡修正不携带质量和动量：
-
-$ sum_i f_i^(k) = 0, quad sum_i bold(e)_i f_i^(k) = bold(0), quad k >= 1. $
-
-把展开代入公式 @lbe-taylor。记 $D_i^(1) = partial_(t_1) + bold(e)_i dot nabla_1$。$epsilon$ 的一阶项给出
-
-$ Delta t D_i^(1) f_i^("eq") = -1/tau f_i^(1), $
-
-所以
-
-$ f_i^(1) = -tau Delta t D_i^(1) f_i^("eq"). $ <first-nonequilibrium>
-
-对一阶方程分别求零阶矩和一阶矩，并使用平衡矩关系，可得宏观尺度上的 Euler 方程：
-
-$ partial_(t_1) rho + nabla_1 dot (rho bold(u)) = 0, $
-
-$
-partial_(t_1)(rho bold(u))
-+ nabla_1 dot [rho bold(u) bold(u) + rho c_s^2 bold(I)] = bold(0).
-$
-
-$epsilon^2$ 的项为
-
-$
-Delta t [partial_(t_2) f_i^("eq") + D_i^(1) f_i^(1)]
-+ (Delta t^2)/2 (D_i^(1))^2 f_i^("eq")
-= -1/tau f_i^(2).
-$
-
-用公式 @first-nonequilibrium 消去 $D_i^(1) f_i^("eq")$ 后，两个二阶导数项合并，系数变为 $tau - 1/2$。对该式求一阶矩，非平衡二阶矩产生黏性应力：
-
-$
-Pi_(alpha beta)^("neq")
-= -rho c_s^2 (tau - 1/2) Delta t
-  [partial_alpha u_beta + partial_beta u_alpha]
-$
-
-，其中略去了低马赫数下的高阶可压缩修正。把 $t_1$ 和 $t_2$ 两个时间尺度重新合并，便得到
-
-$ partial_t rho + nabla dot(rho bold(u)) = 0, $
+$ partial_t rho + nabla ⋅ (rho bold(u)) = 0, $ <kinetic-continuity>
 
 $
 partial_t(rho bold(u))
-+ nabla dot(rho bold(u) bold(u))
-= -nabla p + nabla dot {
-rho nu [nabla bold(u) + (nabla bold(u))^T]
-},
++ nabla ⋅ [rho bold(u) ⊗ bold(u) + bold(P)]
+= rho bold(g).
+$ <kinetic-momentum>
+
+总能量方程为
+
+$
+partial_t(rho E)
++nabla ⋅ [
+(rho E+p)bold(u)
++bold(Pi)^("neq") dot bold(u)
++bold(q)]
+=rho bold(g) dot bold(u).
+$ <kinetic-energy>
+
+这些方程尚未封闭，因为 $bold(P)$ 和 $bold(q)$ 取决于完整分布 $f$。若继续对更高阶速度矩写方程，又会出现更高一阶的矩。动力学理论因此形成矩层级：低阶场的演化依赖高阶通量。
+
+直接令 $f=f^("eq")$ 时，$bold(Pi)^("neq")=bold(0)$ 且 $bold(q)=bold(0)$，得到可压缩 Euler 方程。黏性和热传导都来自偏离局部平衡的第一阶修正。Chapman–Enskog 方法正是按尺度分离计算这个修正。
+
+== 流体动力学极限 <hydrodynamic-limit>
+
+平均自由程 $lambda$ 与宏观特征长度 $L$ 的比值
+
+$ "Kn" = lambda/L $
+
+衡量非平衡程度。$"Kn" << 1$ 时，碰撞把分布快速拉回局部平衡，而宏观场在更长的尺度上缓慢变化。分布可以写成
+
+$ f = f^("eq") + epsilon f^(1) + epsilon^2 f^(2) + dots, quad epsilon = O("Kn"). $
+
+零阶近似产生 Euler 方程；一阶非平衡部分给出 Newton 黏性定律和 Fourier 导热定律。对连续 BGK 模型，三维单原子理想气体有
+
+$
+bold(Pi)^("neq")
+&= -mu [nabla bold(u) + (nabla bold(u))^T
+- 2/3 (nabla ⋅ bold(u)) bold(I)], \
+bold(q) &= -kappa nabla T, \
+mu &= p tau_k, quad kappa = c_p p tau_k.
+$ <bgk-transport-coefficients>
+
+所以 $"Pr"=c_p mu/kappa=1$。真实单原子稀薄气体的 Prandtl 数接近 $2/3$，这说明单松弛 BGK 对热流动并不充分。等温、低马赫数 LBM 不演化温度和热流，通常只保留第一行所代表的黏性输运。
+
+把这些本构关系代回公式 @kinetic-continuity、@kinetic-momentum 与 @kinetic-energy，就得到可压缩 Navier–Stokes–Fourier 方程。这里的 $bold(Pi)^("neq")$ 与第一章的黏性 Cauchy 应力符号相反：动力学压力张量出现在动量通量左侧，而 Cauchy 应力出现在力项右侧，因此 $bold(tau)=-bold(Pi)^("neq")$。明确这个符号关系可以避免把黏性扩散项写反。
+
+连续介质极限还要说明马赫数采用哪种缩放。可压缩极限通常取 $"Kn" << 1$ 而 $"Ma"=O(1)$；弱可压缩 LBM 则取 $"Ma" << 1$，密度扰动满足 $delta rho/rho_0=O("Ma"^2)$。低马赫数不是一句模糊的“速度较小”，而是平衡分布截断与不可压缩极限成立的渐近条件。
+
+== 进阶阅读：Boltzmann 碰撞积分 <advanced-collision-integral>
+
+以下推导使用简写
+
+$
+f &= f(bold(xi),bold(x),t), quad
+f_1 = f(bold(xi)_1,bold(x),t), \
+f^prime &= f(bold(xi)^prime,bold(x),t), quad
+f_1^prime = f(bold(xi)_1^prime,bold(x),t).
 $
 
-其中
+对弹性二体碰撞，碰撞前速度为 $bold(xi),bold(xi)_1$，碰撞后速度为 $bold(xi)^prime,bold(xi)_1^prime$。动量和动能守恒给出
 
-$ p = rho c_s^2, quad nu = c_s^2 (tau - 1/2) Delta t. $ <derived-viscosity>
+$
+bold(xi)+bold(xi)_1
+&= bold(xi)^prime+bold(xi)_1^prime, \
+bold(xi)^2+bold(xi)_1^2
+&= (bold(xi)^prime)^2+(bold(xi)_1^prime)^2.
+$
 
-在格子单位 $Delta x = Delta t = 1$ 下，这就是前文的 $nu = c_s^2(tau - 1/2)$。$-1/2$ 来自离散迁移的二阶 Taylor 项，而不是碰撞时间的经验修正。为得到正黏度必须有 $tau > 1/2$；但这只是必要条件，实际稳定性还受速度、网格、边界和流动状态影响。
+在分子混沌假设下，碰撞对的联合分布分解为 $f f_1$。利用微观可逆性，增益项和损失项可以写进同一个积分。Boltzmann 对稀薄气体碰撞输运与趋近平衡的原始论述见 @boltzmann1872：
 
-这套推导还说明了基础 D2Q9-BGK 模型的适用边界：平衡分布截断到 $O("Ma"^2)$，宏观方程忽略了更高阶可压缩误差，压力由密度通过 $p = rho c_s^2$ 给出。因此它最自然地用于等温、低马赫数、近似不可压缩的流动。完整的 Chapman–Enskog 记号体系和高阶修正可与 @krueger2017、@succi2018 对照，但本书后续实现只使用本节已经推得的关系。
+$
+Omega_B[f](bold(xi))
+= integral integral
+  (f^prime f_1^prime - f f_1)
+  B(g,theta)
+  dif bold(Omega) dif bold(xi)_1,
+$ <boltzmann-collision-integral>
+
+其中 $g=abs(bold(xi)_1-bold(xi))$ 是相对速度，$theta$ 是散射偏转角，$B$ 把相对速度与微分散射截面合并。积分中的二次非线性对应二体碰撞；$bold(x)$ 和 $t$ 只是参数，体现碰撞在宏观时空尺度上近似局部。
+
+任取微观量 $phi(bold(xi))$，碰撞产生率为
+
+$ R_phi = integral phi Omega_B[f] dif bold(xi). $
+
+交换粒子编号，并对正、逆碰撞作变量替换，可得对称形式
+
+$
+R_phi = 1/4 integral integral integral
+(phi + phi_1 - phi^prime - phi_1^prime)
+(f^prime f_1^prime - f f_1)
+B dif bold(Omega) dif bold(xi)_1 dif bold(xi).
+$ <boltzmann-transport-theorem>
+
+若 $phi$ 是碰撞不变量，第一个括号恒为零，公式 @collision-conservation 随即成立。这就是 Boltzmann 输运定理把微观碰撞守恒连接到宏观守恒的方式。
+
+== 进阶阅读：$H$ 定理与平衡分布 <advanced-h-theorem>
+
+定义局部 $H$ 泛函
+
+$ H[f] = integral f ln(f/f_("ref")) dif bold(xi), $
+
+其中常数 $f_("ref")$ 只负责使对数自变量无量纲，不影响导数。将 $phi=ln(f/f_("ref"))+1$ 代入公式 @boltzmann-transport-theorem，碰撞产生率为
+
+$
+sigma_H = 1/4 integral integral integral
+ln[(f f_1)/(f^prime f_1^prime)]
+(f^prime f_1^prime-f f_1)
+B dif bold(Omega) dif bold(xi)_1 dif bold(xi) <= 0.
+$ <h-production>
+
+不等式来自 $(Y-X)ln(X/Y)<=0$。在周期边界或无 $H$ 通量边界下，对空间再积分便有 $dif H_("tot")/dif t<=0$。热力学熵与 $-H_("tot")$ 成正比，因此熵不会因碰撞而减少。
+
+等号成立要求详细平衡
+
+$ f^prime f_1^prime = f f_1. $
+
+取对数后，$ln f$ 必须是碰撞不变量的线性组合：
+
+$ ln f^("eq") = a + bold(b) dot bold(xi) + c bold(xi)^2. $
+
+可积性要求 $c<0$。再用质量、动量和能量矩确定 $a$、$bold(b)$ 和 $c$，便得到公式 @maxwell-boltzmann。Maxwell 分布不是凭经验选取的 Gaussian；它由碰撞不变量、详细平衡和给定守恒矩共同确定。
+
+== 进阶阅读：Chapman–Enskog 展开 <advanced-continuous-ce>
+
+把宏观尺度与平均自由程之比写成小参数 $epsilon$，连续 BGK 方程可无量纲化为
+
+$
+partial_t f + bold(xi) dot nabla f
+= -1/(epsilon tau_k) (f-f^("eq")).
+$
+
+作多尺度展开
+
+$
+f &= f^(0)+epsilon f^(1)+epsilon^2 f^(2)+dots, \
+partial_t &= partial_t^(0)+epsilon partial_t^(1)+dots.
+$
+
+为了让 $rho$、$rho bold(u)$ 和能量始终由 $f^(0)$ 携带，对 $n>=1$ 施加可解性条件
+
+$
+integral {1,bold(xi),1/2 bold(xi)^2} f^(n) dif bold(xi)
+= {0,bold(0),0}.
+$ <ce-solvability>
+
+$O(epsilon^(-1))$ 给出 $f^(0)=f^("eq")$。$O(1)$ 给出
+
+$
+f^(1) = -tau_k
+[partial_t^(0)+bold(xi) dot nabla]f^("eq").
+$ <continuous-first-nonequilibrium>
+
+对零阶方程取守恒矩，可以用 Euler 方程消去 $f^("eq")$ 时间导数。令 $bold(C)=bold(xi)-bold(u)$，整理后的一阶修正只含速度梯度和温度梯度：
+
+$
+f^(1) = -tau_k f^("eq") [
+1/(2 R T)
+(C_alpha C_beta-1/d bold(C)^2 delta_(alpha beta))
+(partial_alpha u_beta+partial_beta u_alpha)
++ (bold(C) dot nabla T)/T
+(bold(C)^2/(2 R T)-(d+2)/2)
+].
+$ <bgk-first-correction>
+
+上式第一部分是二阶无迹 Hermite 模态，产生黏性应力；第二部分是三阶奇模态，产生热流。对它分别取二阶和三阶中心矩，并使用 Gaussian 积分，得到公式 @bgk-transport-coefficients。
+
+这个推导也说明了矩封闭的层次。局部 Maxwell 投影只保留守恒场，得到 Euler 方程；加入 $f^(1)$ 得到 Navier–Stokes–Fourier 方程；Grad 方法则把非平衡应力和热流也当作独立变量，形成 13 矩系统。更高阶 Burnett 修正或 R13 正则化用于更强的非平衡，但不能直接当成基础等温 LBM 的精度承诺。关于这些投影、修正和动力学提升之间的关系，可参阅 @hosseini2023。
+
+下一章把连续速度积分改成有限求和，并把沿特征线的输运变成格点间的精确迁移。相空间离散必须保留本章用到的低阶矩，否则即使碰撞与迁移代码完全正确，也不能恢复目标流体方程。

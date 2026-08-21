@@ -25,6 +25,8 @@
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[D]
 #index-entry([D1Q3], [D1Q3 一维三速模型], <d1q3>)
 #index-entry([D2Q9], [D2Q9 离散速度模型], <d2q9>)
+#index-entry([D3Q19], [D3Q19 三维十九速模型], <d3q19>)
+#index-entry([D3Q27], [D3Q27 三维二十七速模型], <d3q27>)
 #index-entry([Distribution function], [分布函数], <boltzmann-equation>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[E]
@@ -33,6 +35,14 @@
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[F]
 #index-entry([Fluid flow], [流体流动], <fluid-flow>)
 #index-entry([Flow classification], [流动分类], <flow-classification>)
+
+#heading(level: 2, numbering: none, outlined: false, bookmarked: false)[G]
+#index-entry([Gauss–Hermite quadrature], [Gauss–Hermite 求积], <advanced-hermite-quadrature>)
+#index-entry([Galilean invariance], [Galilean 不变性], <advanced-galilean-invariance>)
+
+#heading(level: 2, numbering: none, outlined: false, bookmarked: false)[H]
+#index-entry([H-theorem], [$H$ 定理], <advanced-h-theorem>)
+#index-entry([Hermite expansion], [Hermite 展开], <advanced-hermite-quadrature>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[L]
 #index-entry([Lattice Boltzmann Method], [格子玻尔兹曼方法], <lbm>)
@@ -44,6 +54,9 @@
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[N]
 #index-entry([Navier–Stokes equation], [纳维–斯托克斯方程], <navier-stokes>)
 #index-entry([Numerical methods], [流体数值方法], <numerical-models>)
+
+#heading(level: 2, numbering: none, outlined: false, bookmarked: false)[P]
+#index-entry([Pressure tensor], [动力学压力张量], <moment-hierarchy>)
 
 #heading(level: 2, numbering: none, outlined: false, bookmarked: false)[R]
 #index-entry([Reproducible data], [可复现数据], <reproducible-data>)

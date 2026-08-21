@@ -191,3 +191,97 @@
   ]
   diagram-note([箭头端点落在相邻格点上；索引和离散速度由 Rust 生成的 CSV 决定。])
 }
+
+#let project-3d(point) = {
+  let (x, y, z) = point
+  (x + 0.52 * z, y + 0.34 * z)
+}
+
+#let d3-stencil(include-body: false) = canvas(length: 8.2mm, {
+  import draw: *
+  set-style(
+    stroke: (thickness: 0.7pt, cap: "round"),
+    mark: (scale: 0.52, fill: transport),
+    content: (padding: 1pt),
+  )
+
+  let origin = project-3d((0, 0, 0))
+  let axes = (
+    (1, 0, 0), (-1, 0, 0),
+    (0, 1, 0), (0, -1, 0),
+    (0, 0, 1), (0, 0, -1),
+  )
+  let faces = (
+    (1, 1, 0), (1, -1, 0), (-1, 1, 0), (-1, -1, 0),
+    (1, 0, 1), (1, 0, -1), (-1, 0, 1), (-1, 0, -1),
+    (0, 1, 1), (0, 1, -1), (0, -1, 1), (0, -1, -1),
+  )
+  let bodies = (
+    (1, 1, 1), (1, 1, -1), (1, -1, 1), (1, -1, -1),
+    (-1, 1, 1), (-1, 1, -1), (-1, -1, 1), (-1, -1, -1),
+  )
+  let cube-edges = (
+    ((-1, -1, -1), (1, -1, -1)), ((-1, 1, -1), (1, 1, -1)),
+    ((-1, -1, 1), (1, -1, 1)), ((-1, 1, 1), (1, 1, 1)),
+    ((-1, -1, -1), (-1, 1, -1)), ((1, -1, -1), (1, 1, -1)),
+    ((-1, -1, 1), (-1, 1, 1)), ((1, -1, 1), (1, 1, 1)),
+    ((-1, -1, -1), (-1, -1, 1)), ((1, -1, -1), (1, -1, 1)),
+    ((-1, 1, -1), (-1, 1, 1)), ((1, 1, -1), (1, 1, 1)),
+  )
+
+  for edge in cube-edges {
+    line(project-3d(edge.at(0)), project-3d(edge.at(1)), stroke: guide + 0.45pt)
+  }
+
+  for target in faces {
+    let endpoint = project-3d(target)
+    line(origin, endpoint, stroke: (paint: transport, thickness: 0.62pt, dash: "dashed"), mark: (end: "stealth", fill: transport))
+    circle(endpoint, radius: 0.055, fill: white, stroke: transport + 0.7pt)
+  }
+  for target in axes {
+    let endpoint = project-3d(target)
+    line(origin, endpoint, stroke: transport + 0.9pt, mark: (end: "stealth", fill: transport))
+    circle(endpoint, radius: 0.065, fill: transport, stroke: transport + 0.7pt)
+  }
+
+  for target in bodies {
+    let endpoint = project-3d(target)
+    if include-body {
+      line(origin, endpoint, stroke: (paint: transport, thickness: 0.82pt, dash: "dotted"), mark: (end: "stealth", fill: transport))
+      circle(endpoint, radius: 0.085, fill: white, stroke: transport + 0.85pt)
+      circle(endpoint, radius: 0.028, fill: transport)
+    } else {
+      content(endpoint, text(size: 9pt, weight: "bold", fill: muted)[×], anchor: "center")
+    }
+  }
+
+  circle(origin, radius: 0.10, fill: white, stroke: ink + 1pt)
+  content((1.72, 0.03), text(size: 9pt)[$x$], anchor: "west")
+  content((0.03, 1.48), text(size: 9pt)[$y$], anchor: "south")
+  content((0.91, 0.71), text(size: 9pt)[$z$], anchor: "south-west")
+})
+
+#let d3q-comparison = {
+  grid(
+    columns: (1fr, 1fr),
+    gutter: 18pt,
+    align: center + top,
+    [
+      #panel-title("a", [D3Q19])
+      #v(3pt)
+      #align(center)[#d3-stencil()]
+      #v(2pt)
+      #align(center)[#text(size: 9pt)[6 个轴向＋12 个面对角]]
+    ],
+    [
+      #panel-title("b", [D3Q27])
+      #v(3pt)
+      #align(center)[#d3-stencil(include-body: true)]
+      #v(2pt)
+      #align(center)[#text(size: 9pt)[再加入 8 个体对角]]
+    ],
+  )
+  diagram-note([
+    蓝色实线与实心端点表示轴向速度，虚线与空心端点表示面对角速度，点线与双层端点表示体对角速度；× 表示 D3Q19 未纳入该方向。等轴投影只展示方向关系。
+  ])
+}

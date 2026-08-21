@@ -7,7 +7,7 @@ GENERATED_DIR := book/assets/generated
 CHECK_GENERATED_DIR := build/generated-check
 GENERATED_FILES := d2q9-equilibrium.csv d2q9-equilibrium.svg
 
-.PHONY: help pdf regenerate rust-check punctuation-check figure-check check-generated check
+.PHONY: help pdf regenerate rust-check punctuation-check math-notation-check bibliography-check figure-check check-generated check
 
 help:
 	@echo "可用目标："
@@ -15,6 +15,8 @@ help:
 	@echo "  make regenerate      重新生成文档数据与 SVG"
 	@echo "  make rust-check      检查格式、Clippy 与测试"
 	@echo "  make punctuation-check 检查中文标点"
+	@echo "  make math-notation-check 检查易误排的数学记号"
+	@echo "  make bibliography-check 检查参考文献均在正文引用"
 	@echo "  make figure-check     检查插图字号和矢量箭头"
 	@echo "  make check-generated 检查生成资产是否最新"
 	@echo "  make check           执行全部检查"
@@ -43,6 +45,28 @@ punctuation-check:
 		exit 1
 	fi
 
+math-notation-check:
+	set -eu
+	if rg --line-number '\bdot[[:space:]]*\(' book --glob '*.typ'; then
+		echo "检测到可能被 Typst 解释为重音函数的 dot(...) 记号。" >&2
+		exit 1
+	fi
+
+bibliography-check:
+	set -eu
+	bib_keys="$$(mktemp)"
+	cited_keys="$$(mktemp)"
+	trap 'rm -f "$$bib_keys" "$$cited_keys"' EXIT
+	sed -n 's/^@[^{]*{\([^,]*\),/\1/p' book/references.bib | sort > "$$bib_keys"
+	rg --no-filename -o '@[A-Za-z0-9:_-]+' book --glob '*.typ' \
+		| sed 's/^@//' | sort -u > "$$cited_keys"
+	unused="$$(comm -23 "$$bib_keys" "$$cited_keys")"
+	if [[ -n "$$unused" ]]; then
+		echo "检测到未在正文引用的参考文献：" >&2
+		echo "$$unused" >&2
+		exit 1
+	fi
+
 figure-check:
 	bash scripts/check-figure-quality.sh
 
@@ -54,4 +78,4 @@ check-generated:
 		diff -u "$(GENERATED_DIR)/$$file" "$(CHECK_GENERATED_DIR)/$$file"
 	done
 
-check: rust-check punctuation-check figure-check check-generated pdf
+check: rust-check punctuation-check math-notation-check bibliography-check figure-check check-generated pdf

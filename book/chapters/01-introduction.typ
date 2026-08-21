@@ -51,23 +51,23 @@ $ (dif)/(dif t) integral_V rho dif V = - integral_(partial V) rho bold(u) dot bo
 
 这就是质量守恒的积分形式。利用散度定理
 
-$ integral_(partial V) rho bold(u) dot bold(n) dif A = integral_V nabla dot (rho bold(u)) dif V, $
+$ integral_(partial V) rho bold(u) dot bold(n) dif A = integral_V nabla ⋅ (rho bold(u)) dif V, $
 
 并把时间导数移入固定积分区域，可得
 
-$ integral_V [partial_t rho + nabla dot (rho bold(u))] dif V = 0. $
+$ integral_V [partial_t rho + nabla ⋅ (rho bold(u))] dif V = 0. $
 
 因为控制体 $V$ 可以任意选取，方括号中的局部量必须处处为零：
 
-$ partial_t rho + nabla dot (rho bold(u)) = 0. $ <continuity-equation>
+$ partial_t rho + nabla ⋅ (rho bold(u)) = 0. $ <continuity-equation>
 
 这就是连续性方程。它不要求流体不可压缩，也不要求流动稳定。把乘积展开后，方程还可写为
 
-$ (D rho)/(D t) + rho nabla dot bold(u) = 0. $
+$ (D rho)/(D t) + rho nabla ⋅ bold(u) = 0. $
 
 第一项表示跟随微团观察到的密度变化，第二项表示微团体积的膨胀或压缩。对于密度保持常数的不可压缩流体，连续性方程化为
 
-$ nabla dot bold(u) = 0. $ <incompressible-continuity>
+$ nabla ⋅ bold(u) = 0. $ <incompressible-continuity>
 
 “不可压缩”并不等于“速度处处相同”。它表示速度场的散度为零，也就是一个微小流体体积不会持续膨胀或收缩。
 
@@ -85,11 +85,11 @@ $
 
 对动量通量和表面力使用散度定理，可得局部形式
 
-$ partial_t (rho bold(u)) + nabla dot (rho bold(u) bold(u)) = nabla dot bold(sigma) + rho bold(g). $
+$ partial_t (rho bold(u)) + nabla ⋅ [rho bold(u) ⊗ bold(u)] = nabla ⋅ bold(sigma) + rho bold(g). $
 
 用连续性方程消去密度变化项后，左侧可以整理为 $rho D bold(u)/D t$：
 
-$ rho [partial_t bold(u) + bold(u) dot nabla bold(u)] = nabla dot bold(sigma) + rho bold(g). $ <cauchy-momentum>
+$ rho [partial_t bold(u) + bold(u) dot nabla bold(u)] = nabla ⋅ bold(sigma) + rho bold(g). $ <cauchy-momentum>
 
 到这里还没有指定流体材料如何响应变形。动量守恒适用于水、空气和非牛顿流体；不同材料的区别藏在应力 $bold(sigma)$ 与速度梯度的关系中，这种关系称为本构关系。
 
@@ -101,25 +101,25 @@ $ bold(sigma) = -p bold(I) + bold(tau). $
 
 $bold(I)$ 是单位张量，$bold(tau)$ 是黏性应力。牛顿流体假设黏性应力与局部变形速率成正比。对各向同性流体，常用关系为
 
-$ bold(tau) = mu [nabla bold(u) + (nabla bold(u))^T] + lambda_v (nabla dot bold(u)) bold(I), $
+$ bold(tau) = mu [nabla bold(u) + (nabla bold(u))^T] + lambda_v (nabla ⋅ bold(u)) bold(I), $
 
 其中 $mu$ 是动力黏度，$lambda_v$ 是第二黏度系数。把它代入动量方程，在 $mu$ 和 $lambda_v$ 为空间常数时得到可压缩 Navier–Stokes 动量方程
 
 $
 rho [partial_t bold(u) + bold(u) dot nabla bold(u)]
 = -nabla p + mu nabla^2 bold(u)
-+ (mu + lambda_v) nabla(nabla dot bold(u)) + rho bold(g).
++ (mu + lambda_v) nabla(nabla ⋅ bold(u)) + rho bold(g).
 $
 
-若密度为常数且 $nabla dot bold(u) = 0$，最后一个黏性散度项消失。再定义运动黏度 $nu = mu / rho$，便得到本书后续主要关心的不可压缩 Navier–Stokes 方程：
+若密度为常数且 $nabla ⋅ bold(u) = 0$，最后一个黏性散度项消失。再定义运动黏度 $nu = mu / rho$，便得到本书后续主要关心的不可压缩 Navier–Stokes 方程：
 
 $
 partial_t bold(u) + bold(u) dot nabla bold(u)
 = -1/rho nabla p + nu nabla^2 bold(u) + bold(g),
-quad nabla dot bold(u) = 0.
+quad nabla ⋅ bold(u) = 0.
 $ <incompressible-ns>
 
-方程左侧分别是局部加速度和对流加速度；右侧依次是压力梯度、黏性扩散和体力。压力在不可压缩模型中还有一个特殊作用：它会调整速度场，使 $nabla dot bold(u) = 0$ 始终成立。这也是传统不可压缩求解器通常需要解压力泊松方程的原因。
+方程左侧分别是局部加速度和对流加速度；右侧依次是压力梯度、黏性扩散和体力。压力在不可压缩模型中还有一个特殊作用：它会调整速度场，使 $nabla ⋅ bold(u) = 0$ 始终成立。这也是传统不可压缩求解器通常需要解压力泊松方程的原因。
 
 == 怎样给一个流动问题分类 <flow-classification>
 
@@ -199,14 +199,14 @@ $
 
 用散度定理并利用控制体的任意性，得到
 
-$ partial_t(rho phi) + nabla dot (rho phi bold(u)) = s_phi. $
+$ partial_t(rho phi) + nabla ⋅ (rho phi bold(u)) = s_phi. $
 
 展开左侧：
 
 $
-partial_t(rho phi) + nabla dot (rho phi bold(u))
+partial_t(rho phi) + nabla ⋅ (rho phi bold(u))
 = rho [partial_t phi + bold(u) dot nabla phi]
-+ phi [partial_t rho + nabla dot(rho bold(u))].
++ phi [partial_t rho + nabla ⋅ (rho bold(u))].
 $
 
 第二个方括号由连续性方程知为零，所以一般输运式化为
@@ -217,24 +217,24 @@ $ rho (D phi)/(D t) = s_phi. $
 
 === 牛顿流体黏性项的化简
 
-把牛顿流体本构关系代入 $nabla dot bold(sigma)$：
+把牛顿流体本构关系代入 $nabla ⋅ bold(sigma)$：
 
 $
-nabla dot bold(sigma)
+nabla ⋅ bold(sigma)
 = -nabla p
-+ nabla dot {mu [nabla bold(u) + (nabla bold(u))^T]}
-+ nabla [lambda_v (nabla dot bold(u))].
++ nabla ⋅ {mu [nabla bold(u) + (nabla bold(u))^T]}
++ nabla [lambda_v (nabla ⋅ bold(u))].
 $
 
 当黏度为常数时，逐项求散度得到
 
 $
-nabla dot bold(sigma)
+nabla ⋅ bold(sigma)
 = -nabla p + mu nabla^2 bold(u)
-+ (mu + lambda_v) nabla(nabla dot bold(u)).
++ (mu + lambda_v) nabla(nabla ⋅ bold(u)).
 $
 
-不可压缩条件使 $nabla dot bold(u) = 0$，因此最后一项为零。再除以常密度 $rho$，就得到公式 @incompressible-ns。这里每一个简化都有明确前提：常黏度、常密度和零速度散度。若温度导致黏度显著变化，$mu$ 不能移出导数；若流体可压缩，散度项也不能直接删掉。
+不可压缩条件使 $nabla ⋅ bold(u) = 0$，因此最后一项为零。再除以常密度 $rho$，就得到公式 @incompressible-ns。这里每一个简化都有明确前提：常黏度、常密度和零速度散度。若温度导致黏度显著变化，$mu$ 不能移出导数；若流体可压缩，散度项也不能直接删掉。
 
 === 无量纲化与主导项
 
