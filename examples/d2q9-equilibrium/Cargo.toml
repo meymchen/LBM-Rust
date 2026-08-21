@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+kuva = "0.5"
 lbm-core = { path = "../../crates/lbm-core" }
 
 [lints]

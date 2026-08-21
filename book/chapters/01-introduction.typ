@@ -1,4 +1,5 @@
 #import "../figures/fluid-foundations.typ": control-volume
+#import "../symbols.typ": dphi, dt
 
 = 流体流动基础 <fluid-flow>
 
@@ -9,24 +10,35 @@
 == 从流体微团到流场 <continuum>
 
 一杯水含有数量极大的分子。逐个记录分子的位置和速度，既没有必要，也远远超出通常的计算能力。工程流体力学把一个包含大量分子、但相对管道或叶片又足够小的体积称为流体微团。我们用微团内的平均量描述流动，例如密度 $rho$、速度 $bold(u)$、压力 $p$ 和温度 $T$。
+#metadata("sym-density") <sym-density>
+#metadata("sym-macroscopic-velocity") <sym-macroscopic-velocity>
+#metadata("sym-pressure") <sym-pressure>
+#metadata("sym-temperature") <sym-temperature>
 
 只要问题的特征长度 $L$ 远大于分子平均自由程 $lambda$，相邻微团的平均量便可以看成连续变化。两者之比
+#metadata("sym-characteristic-length") <sym-characteristic-length>
+#metadata("sym-mean-free-path") <sym-mean-free-path>
 
 $ "Kn" = lambda / L $
+#metadata("sym-knudsen-number") <sym-knudsen-number>
 
 称为努森数（Knudsen number）。当 $"Kn"$ 很小时，连续介质假设通常成立；当气体非常稀薄或通道小到微纳米尺度时，分子的非平衡效应变得明显，连续介质模型可能失效。
 
 描述连续介质有两种视角。拉格朗日描述跟随同一个流体微团，像跟踪一片漂在水面的叶子；欧拉描述固定观察空间位置，像站在桥上记录桥下每一点的流速。数值流体力学常采用欧拉描述，把物理量写成位置 $bold(x)$ 和时间 $t$ 的函数：
+#metadata("sym-position") <sym-position>
+#metadata("sym-time") <sym-time>
 
 $ rho = rho(bold(x), t), quad bold(u) = bold(u)(bold(x), t), quad p = p(bold(x), t). $
 
-这些随空间和时间变化的量统称为场。一个跟随流动的微团经过非均匀流场时，即使某个固定位置的量不随时间改变，微团感受到的量也可能改变。设标量 $phi(bold(x),t)$ 表示温度或浓度。经过时间 $Delta t$ 后，微团从 $bold(x)$ 移到 $bold(x) + bold(u) Delta t$，于是
+这些随空间和时间变化的量统称为场。一个跟随流动的微团经过非均匀流场时，即使某个固定位置的量不随时间改变，微团感受到的量也可能改变。设标量 $phi(bold(x),t)$ 表示温度或浓度。经过时间 $#dt$ 后，微团从 $bold(x)$ 移到 $bold(x) + bold(u) #dt$，于是
+#metadata("sym-time-increment") <sym-time-increment>
 
 $
-Delta phi = phi(bold(x) + bold(u) Delta t, t + Delta t) - phi(bold(x), t).
+#dphi = phi(bold(x) + bold(u) #dt, t + #dt) - phi(bold(x), t).
 $
+#metadata("sym-scalar-increment") <sym-scalar-increment>
 
-对右侧作一阶展开并除以 $Delta t$，令 $Delta t arrow 0$，得到物质导数（material derivative）
+对右侧作一阶展开并除以 $#dt$，令 $#dt arrow 0$，得到物质导数（material derivative）
 
 $ (D phi) / (D t) = partial_t phi + bold(u) dot nabla phi. $
 
@@ -82,6 +94,8 @@ partial_t integral_V rho bold(u) dif V
 $
 
 左侧第一项是控制体内的动量变化，第二项是通过边界的净动量通量。右侧包含两类力：$bold(sigma) bold(n)$ 是周围流体通过表面施加的力，$rho bold(g)$ 是重力等作用于体积内部的体力。$bold(sigma)$ 称为柯西应力张量。
+#metadata("sym-cauchy-stress") <sym-cauchy-stress>
+#metadata("sym-body-acceleration") <sym-body-acceleration>
 
 对动量通量和表面力使用散度定理，可得局部形式
 
@@ -98,12 +112,15 @@ $ rho [partial_t bold(u) + bold(u) dot nabla bold(u)] = nabla ⋅ bold(sigma) + 
 静止流体中的应力只有压力。压力总是垂直表面并指向内部，因此应力张量可分为压力部分和黏性部分：
 
 $ bold(sigma) = -p bold(I) + bold(tau). $
+#metadata("sym-viscous-stress") <sym-viscous-stress>
 
 $bold(I)$ 是单位张量，$bold(tau)$ 是黏性应力。牛顿流体假设黏性应力与局部变形速率成正比。对各向同性流体，常用关系为
 
 $ bold(tau) = mu [nabla bold(u) + (nabla bold(u))^T] + lambda_v (nabla ⋅ bold(u)) bold(I), $
 
 其中 $mu$ 是动力黏度，$lambda_v$ 是第二黏度系数。把它代入动量方程，在 $mu$ 和 $lambda_v$ 为空间常数时得到可压缩 Navier–Stokes 动量方程
+#metadata("sym-dynamic-viscosity") <sym-dynamic-viscosity>
+#metadata("sym-second-viscosity") <sym-second-viscosity>
 
 $
 rho [partial_t bold(u) + bold(u) dot nabla bold(u)]
@@ -112,6 +129,7 @@ rho [partial_t bold(u) + bold(u) dot nabla bold(u)]
 $
 
 若密度为常数且 $nabla ⋅ bold(u) = 0$，最后一个黏性散度项消失。再定义运动黏度 $nu = mu / rho$，便得到本书后续主要关心的不可压缩 Navier–Stokes 方程：
+#metadata("sym-kinematic-viscosity") <sym-kinematic-viscosity>
 
 $
 partial_t bold(u) + bold(u) dot nabla bold(u)
@@ -135,12 +153,15 @@ $ <incompressible-ns>
 其中最常用的判别参数是雷诺数。取特征速度 $U$ 和特征长度 $L$，比较 Navier–Stokes 方程中对流项的量级 $U^2/L$ 与黏性项的量级 $nu U/L^2$，两者之比为
 
 $ "Re" = (U L) / nu. $
+#metadata("sym-reynolds-number") <sym-reynolds-number>
 
 低 $"Re"$ 表示黏性效应相对强，高 $"Re"$ 表示惯性效应相对强。雷诺数并不是层流与湍流之间普适且唯一的分界值；具体转捩位置还受几何和入口扰动影响。
 
 马赫数
 
 $ "Ma" = U / c_s $
+#metadata("sym-sound-speed") <sym-sound-speed>
+#metadata("sym-mach-number") <sym-mach-number>
 
 比较流速 $U$ 与声速 $c_s$。当 $"Ma"$ 较小时，压力扰动传播得比流体运动快，密度变化通常较弱。本书使用的等温 LBM 是弱可压缩模型：它通过微小密度变化表达压力，因此实际计算既要匹配目标 $"Re"$，也要把 $"Ma"$ 控制在低速范围。
 

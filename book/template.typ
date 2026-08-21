@@ -1,8 +1,15 @@
 #let equation-prefix = state("equation-prefix", none)
+#let figure-prefix = state("figure-prefix", none)
+#let book-figure = figure.where(kind: "book-figure")
 
 #let equation-scope(prefix) = {
   equation-prefix.update(prefix)
   counter(math.equation).update(0)
+}
+
+#let figure-scope(prefix) = {
+  figure-prefix.update(prefix)
+  counter(book-figure).update(0)
 }
 
 #let project(document-title: none, title: none, subtitle: none, authors: (), body) = {
@@ -22,6 +29,17 @@
   )
   set par(justify: true, leading: 0.75em)
   set heading(numbering: "1.1")
+  set figure(
+    kind: "book-figure",
+    supplement: [图],
+    numbering: number => context {
+      let prefix = figure-prefix.get()
+      if prefix == none {
+        panic("图所在的无编号区域未定义图编号前缀")
+      }
+      [#(prefix)-#number]
+    },
+  )
   set math.equation(numbering: number => context {
     let prefix = equation-prefix.get()
     if prefix == none {
@@ -32,11 +50,15 @@
   show heading.where(level: 1): it => context {
     if it.numbering == none {
       equation-prefix.update(none)
+      figure-prefix.update(none)
       counter(math.equation).update(0)
+      counter(book-figure).update(0)
     } else {
       let prefix = numbering(it.numbering, ..counter(heading).get())
       equation-prefix.update(prefix)
+      figure-prefix.update(prefix)
       counter(math.equation).update(0)
+      counter(book-figure).update(0)
     }
     it
   }

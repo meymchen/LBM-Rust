@@ -1,0 +1,14 @@
+[package]
+name = "lbm-vtk"
+version = "0.1.0"
+description = "VTK field snapshot export for LBM-Rust"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+vtkio = "0.7.0-rc2"
+
+[lints]
+workspace = true

@@ -6,16 +6,21 @@ PDF := build/lbm-rust.pdf
 GENERATED_DIR := book/assets/generated
 CHECK_GENERATED_DIR := build/generated-check
 GENERATED_FILES := d2q9-equilibrium.csv d2q9-equilibrium.svg
+VTK_FIXTURE_DIR := examples/vtk-interop/fixtures/reference
+PARAVIEW_SMOKE_DIR := build/paraview-smoke
 
-.PHONY: help pdf regenerate rust-check punctuation-check math-notation-check bibliography-check figure-check check-generated check
+.PHONY: help pdf regenerate rust-check vtk-smoke paraview-smoke punctuation-check math-notation-check symbol-index-check bibliography-check figure-check check-generated check
 
 help:
 	@echo "可用目标："
 	@echo "  make pdf             使用现有数据生成 PDF"
 	@echo "  make regenerate      重新生成文档数据与 SVG"
 	@echo "  make rust-check      检查格式、Clippy 与测试"
+	@echo "  make vtk-smoke       验证 VTK 写入、读回和互操作资产"
+	@echo "  make paraview-smoke  使用 pvpython 验证三个后处理流程"
 	@echo "  make punctuation-check 检查中文标点"
 	@echo "  make math-notation-check 检查易误排的数学记号"
+	@echo "  make symbol-index-check 检查符号索引布局与首次定义锚点"
 	@echo "  make bibliography-check 检查参考文献均在正文引用"
 	@echo "  make figure-check     检查插图字号和矢量箭头"
 	@echo "  make check-generated 检查生成资产是否最新"
@@ -29,12 +34,26 @@ pdf:
 regenerate:
 	set -eu
 	cargo run --quiet -p d2q9-equilibrium -- "$(GENERATED_DIR)"
+	cargo run --quiet -p vtk-interop -- --force "$(VTK_FIXTURE_DIR)"
 
 rust-check:
 	set -eu
 	cargo fmt --all --check
 	cargo clippy --workspace --all-targets -- -D warnings
 	cargo test --workspace
+
+vtk-smoke:
+	set -eu
+	cargo test -p lbm-vtk -p vtk-interop
+
+paraview-smoke:
+	set -eu
+	cargo run --quiet -p vtk-interop -- --force build/vtk-smoke
+	rm -rf "$(PARAVIEW_SMOKE_DIR)"
+	pvpython scripts/paraview/vtk-interop.py build/vtk-smoke "$(PARAVIEW_SMOKE_DIR)"
+	test -s "$(PARAVIEW_SMOKE_DIR)/speed.vti"
+	test -s "$(PARAVIEW_SMOKE_DIR)/streamlines.vtp"
+	rg --quiet '"density","speed","velocity:0"' "$(PARAVIEW_SMOKE_DIR)/centerline.csv"
 
 punctuation-check:
 	set -eu
@@ -51,6 +70,14 @@ math-notation-check:
 		echo "检测到可能被 Typst 解释为重音函数的 dot(...) 记号。" >&2
 		exit 1
 	fi
+	if rg --line-number '\b(Delta|delta)[[:space:]]+(bold\([^)]*\)|[A-Za-z])' book/chapters book/figures --glob '*.typ'; then
+		echo "检测到未封装为单个数学原子的增量或扰动符号。" >&2
+		exit 1
+	fi
+
+symbol-index-check:
+	set -eu
+	bash scripts/check-symbol-index.sh
 
 bibliography-check:
 	set -eu
@@ -74,8 +101,10 @@ check-generated:
 	set -eu
 	mkdir -p "$(CHECK_GENERATED_DIR)"
 	cargo run --quiet -p d2q9-equilibrium -- "$(CHECK_GENERATED_DIR)"
+	cargo run --quiet -p vtk-interop -- --force "$(CHECK_GENERATED_DIR)/vtk-interop"
 	for file in $(GENERATED_FILES); do
 		diff -u "$(GENERATED_DIR)/$$file" "$(CHECK_GENERATED_DIR)/$$file"
 	done
+	diff -ru "$(VTK_FIXTURE_DIR)" "$(CHECK_GENERATED_DIR)/vtk-interop"
 
-check: rust-check punctuation-check math-notation-check bibliography-check figure-check check-generated pdf
+check: rust-check punctuation-check math-notation-check symbol-index-check bibliography-check figure-check check-generated pdf

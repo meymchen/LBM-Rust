@@ -1,8 +1,9 @@
-#import "../template.typ": equation-scope
+#import "../template.typ": equation-scope, figure-scope
 
 #pagebreak(weak: true)
 #heading(level: 1, numbering: none, outlined: true)[索引] <index>
 #equation-scope("I")
+#figure-scope("I")
 
 #let index-entry(english, chinese, target) = {
   english

@@ -1,0 +1,7 @@
+{
+  "file-series-version": "1.0",
+  "files": [
+    { "name": "step_000000.vti", "time": 0 },
+    { "name": "step_000007.vti", "time": 0.35 }
+  ]
+}

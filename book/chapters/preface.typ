@@ -1,7 +1,8 @@
-#import "../template.typ": equation-scope
+#import "../template.typ": equation-scope, figure-scope
 
 #heading(level: 1, numbering: none, outlined: true)[前言] <preface>
 #equation-scope("P")
+#figure-scope("P")
 
 LBM-Rust 是一个面向学习、验证和代码实践的开放仓库。主要读者是高年级本科生、研究生，以及具备基本数学和物理知识、希望用 LBM 解决实际问题的工程师。文档使用 Typst 编写，数值代码使用 Rust 编写；两部分共享术语、公式和可复现数据，使读者能够从一维小问题逐步走到可运行、可验证且可优化的格子玻尔兹曼实现。
 

@@ -30,6 +30,8 @@ LBM-Rust 使用 Rust 学习和实现 Lattice Boltzmann Method（LBM），并使�
 - ripgrep，用于检查中文标点；
 - Noto Serif CJK SC 字体。
 
+[ParaView](https://www.paraview.org/) 6.1 是可选依赖，只在运行场后处理 smoke test 时使用。普通 Rust 检查和 PDF 构建不需要安装 ParaView。
+
 Ubuntu／Debian 可以通过系统包 `fonts-noto-cjk` 安装所需中文字体。仓库根目录的 `rust-toolchain.toml` 会为 Rust 工具链声明必要组件。
 
 ## 快速开始
@@ -54,12 +56,29 @@ make check-generated
 make check
 ```
 
+VTK 互操作检查由 Rust 完成，可以单独运行：
+
+```sh
+make vtk-smoke
+```
+
+已安装 ParaView 6.1 时，还可以验证速度大小、流线和中心线剖面三个后处理流程：
+
+```sh
+make paraview-smoke
+```
+
+这组数据来自确定性合成场，只检查 Rust、VTK 和 ParaView 是否正确衔接，不属于 CFD 数值验证。
+
 ## 仓库结构
 
 - `crates/lbm-core`：可复用的 LBM 基础库；
+- `crates/lbm-vtk`：二维格子场快照和 VTK XML ImageData 导出；
 - `examples/d2q9-equilibrium`：确定性数据生成程序；
+- `examples/vtk-interop`：VTK／ParaView 互操作原型与小型场夹具；
 - `book`：可完整出版的 Typst 书稿、章节和生成数据；
 - `book/figures`：可复用的 Typst 图形组件、章节图源和插图维护约定；
+- `scripts/paraview`：可复现的 ParaView Python 后处理流程；
 - `docs`：项目维护与代理协作文档；
 - `build`：本地 PDF 与临时输出，不纳入版本控制。
 

@@ -8,6 +8,7 @@
 )
 
 #include "chapters/preface.typ"
+#include "chapters/symbol-index.typ"
 #counter(heading).update(0)
 #include "chapters/01-introduction.typ"
 #include "chapters/02-foundations.typ"

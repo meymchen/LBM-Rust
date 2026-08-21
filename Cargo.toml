@@ -1,7 +1,9 @@
 [workspace]
 members = [
     "crates/lbm-core",
+    "crates/lbm-vtk",
     "examples/d2q9-equilibrium",
+    "examples/vtk-interop",
 ]
 resolver = "2"
 

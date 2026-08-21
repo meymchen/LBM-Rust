@@ -1,3 +1,5 @@
+#import "../symbols.typ": drho, dt
+
 #pagebreak(weak: true)
 = 从 Boltzmann 方程到流体力学 <boltzmann-equation>
 
@@ -8,8 +10,14 @@
 == 符号与描述层次 <kinetic-notation>
 
 空间维数记为 $d$，位置、微观速度和宏观流速分别写成 $bold(x)$、$bold(xi)$ 和 $bold(u)$。连续速度使用 $bold(xi)$，下一章的离散速度使用 $bold(c)_i$；二者不混用。Cartesian 分量用 Greek 下标表示，例如 $xi_alpha$、$u_alpha$。重复的 Greek 下标默认求和，而离散速度下标 $i$ 的求和始终显式写出。
+#metadata("sym-dimension") <sym-dimension>
+#metadata("sym-microscopic-velocity") <sym-microscopic-velocity>
+#metadata("sym-discrete-velocity") <sym-discrete-velocity>
+#metadata("sym-cartesian-indices") <sym-cartesian-indices>
+#metadata("sym-discrete-index") <sym-discrete-index>
 
 本书采用质量分布函数 $f(bold(x), bold(xi), t)$。因此 $f dif bold(xi)$ 是单位物理体积内、微观速度落在 $dif bold(xi)$ 中的质量，宏观密度和动量为
+#metadata("sym-continuous-distribution") <sym-continuous-distribution>
 
 $
 rho = integral f dif bold(xi), quad
@@ -19,10 +27,14 @@ $ <continuous-moments>
 速度积分覆盖整个 $RR^d$。定义涨落速度（peculiar velocity）
 
 $ bold(C) = bold(xi) - bold(u). $
+#metadata("sym-peculiar-velocity") <sym-peculiar-velocity>
 
 由于 $bold(u)$ 已是质量加权平均速度，必有 $integral bold(C) f dif bold(xi) = bold(0)$。这个恒等式会消去许多一阶中心矩。
 
-需要区分三类时间尺度。$tau_k$ 表示连续 BGK 方程中的物理松弛时间；$Delta t$ 是数值时间步；下一章的 $overline(tau)$ 是梯形积分后出现在碰撞公式中的离散松弛时间。把它们都写成 $tau$ 会掩盖半时间步修正，也是许多黏度公式错误的来源。
+需要区分三类时间尺度。$tau_k$ 表示连续 BGK 方程中的物理松弛时间；$#dt$ 是数值时间步；下一章的 $overline(tau)$ 是梯形积分后出现在碰撞公式中的离散松弛时间。把它们都写成 $tau$ 会掩盖半时间步修正，也是许多黏度公式错误的来源。
+#metadata("sym-physical-relaxation-time") <sym-physical-relaxation-time>
+#metadata("sym-time-step") <sym-time-step>
+#metadata("sym-discrete-relaxation-time") <sym-discrete-relaxation-time>
 
 == 自由输运与碰撞 <kinetic-transport>
 
@@ -31,6 +43,7 @@ $ bold(C) = bold(xi) - bold(u). $
 $ partial_t f + bold(xi) dot nabla_bold(x) f = Omega_B[f]. $ <continuous-boltzmann>
 
 左侧是自由输运。若暂时令碰撞项为零，分布沿特征线 $bold(x)(t)=bold(x)_0+bold(xi)t$ 保持不变。右侧的 $Omega_B$ 是碰撞算子，它在同一空间位置重新分配微观速度。
+#metadata("sym-boltzmann-collision") <sym-boltzmann-collision>
 
 存在单位质量体力 $bold(g)$ 时，粒子在速度空间中也发生平移：
 
@@ -40,6 +53,7 @@ partial_t f + bold(xi) dot nabla_bold(x) f
 $ <forced-boltzmann>
 
 这里 $bold(g)$ 的量纲是加速度，力密度为 $bold(F)=rho bold(g)$。后续离散外力项必须恢复 $bold(F)$ 的一阶矩；仅在平衡速度中随意加一个偏移，通常不能保证二阶精度。
+#metadata("sym-force-density") <sym-force-density>
 
 稀薄单原子气体的 Boltzmann 碰撞算子建立在五项假设上：二体碰撞、碰撞在时空上局部、弹性碰撞、微观动力学可逆，以及碰撞前两个粒子的速度不相关，即分子混沌假设。碰撞改变单个粒子的速度，却保持碰撞对的质量、动量和动能。
 
@@ -81,6 +95,7 @@ f^("eq")(bold(xi))
 = rho/(2 pi R T)^(d/2)
   exp[-bold(C)^2/(2 R T)].
 $ <maxwell-boltzmann>
+#metadata("sym-continuous-equilibrium") <sym-continuous-equilibrium>
 
 $R$ 是比气体常数。称它为“局部平衡”，是因为 $rho(bold(x),t)$、$bold(u)(bold(x),t)$ 和 $T(bold(x),t)$ 仍可随时空变化。此时碰撞项为零，但自由输运项一般不为零；只有这些参数均匀且稳定时，$f^("eq")$ 才是全局平衡解。
 
@@ -99,10 +114,12 @@ $ <maxwell-moments>
 定义二阶中心矩，即动力学压力张量，
 
 $ bold(P) = integral bold(C) ⊗ bold(C) f dif bold(xi), $
+#metadata("sym-pressure-tensor") <sym-pressure-tensor>
 
 以及热流
 
 $ bold(q) = integral 1/2 bold(C)^2 bold(C) f dif bold(xi). $
+#metadata("sym-heat-flux") <sym-heat-flux>
 
 总能量密度为
 
@@ -151,6 +168,7 @@ $ "Kn" = lambda/L $
 衡量非平衡程度。$"Kn" << 1$ 时，碰撞把分布快速拉回局部平衡，而宏观场在更长的尺度上缓慢变化。分布可以写成
 
 $ f = f^("eq") + epsilon f^(1) + epsilon^2 f^(2) + dots, quad epsilon = O("Kn"). $
+#metadata("sym-scale-separation") <sym-scale-separation>
 
 零阶近似产生 Euler 方程；一阶非平衡部分给出 Newton 黏性定律和 Fourier 导热定律。对连续 BGK 模型，三维单原子理想气体有
 
@@ -166,7 +184,8 @@ $ <bgk-transport-coefficients>
 
 把这些本构关系代回公式 @kinetic-continuity、@kinetic-momentum 与 @kinetic-energy，就得到可压缩 Navier–Stokes–Fourier 方程。这里的 $bold(Pi)^("neq")$ 与第一章的黏性 Cauchy 应力符号相反：动力学压力张量出现在动量通量左侧，而 Cauchy 应力出现在力项右侧，因此 $bold(tau)=-bold(Pi)^("neq")$。明确这个符号关系可以避免把黏性扩散项写反。
 
-连续介质极限还要说明马赫数采用哪种缩放。可压缩极限通常取 $"Kn" << 1$ 而 $"Ma"=O(1)$；弱可压缩 LBM 则取 $"Ma" << 1$，密度扰动满足 $delta rho/rho_0=O("Ma"^2)$。低马赫数不是一句模糊的“速度较小”，而是平衡分布截断与不可压缩极限成立的渐近条件。
+连续介质极限还要说明马赫数采用哪种缩放。可压缩极限通常取 $"Kn" << 1$ 而 $"Ma"=O(1)$；弱可压缩 LBM 则取 $"Ma" << 1$，密度扰动满足 $#drho/rho_0=O("Ma"^2)$。低马赫数不是一句模糊的“速度较小”，而是平衡分布截断与不可压缩极限成立的渐近条件。
+#metadata("sym-density-perturbation") <sym-density-perturbation>
 
 == 进阶阅读：Boltzmann 碰撞积分 <advanced-collision-integral>
 

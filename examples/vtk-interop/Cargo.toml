@@ -1,0 +1,14 @@
+[package]
+name = "vtk-interop"
+version = "0.1.0"
+description = "Generate a deterministic VTK and ParaView interoperability fixture"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lbm-vtk = { path = "../../crates/lbm-vtk" }
+
+[lints]
+workspace = true
