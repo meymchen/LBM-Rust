@@ -173,8 +173,8 @@ $ <srt-collision>
 随后沿格线迁移：
 
 $
-overline(f)_i(bold(x)+bold(c)_i #dt,t+#dt)
-= overline(f)_i^star(bold(x),t).
+overline(f)_i (bold(x)+bold(c)_i #dt,t+#dt)
+= overline(f)_i^star (bold(x),t).
 $ <lattice-streaming>
 
 #figure(
@@ -205,8 +205,8 @@ $ nu=1/3(1/omega-1/2)=1/3[overline(tau)-1/2]. $
 以格子单位中的 D1Q3 为例，一个时间步是：
 
 1. 用 $rho=sum_i overline(f)_i$ 和 $rho u=sum_i c_i overline(f)_i$ 计算宏观量。
-2. 用公式 @second-order-equilibrium 计算三个 $f_i^("eq")$。
-3. 用公式 @srt-collision 完成本地碰撞。
+2. 用@second-order-equilibrium 计算三个 $f_i^("eq")$。
+3. 用@srt-collision 完成本地碰撞。
 4. 把三个碰撞后分布按 $c_i$ 迁移到相邻格点。
 
 均匀静止状态满足 $overline(f)_i=f_i^("eq")=w_i rho_0$。碰撞差为零，迁移只交换相同数值，所以状态应保持不变。这个测试能同时检查权重、速度索引、碰撞符号和周期迁移。
@@ -216,8 +216,8 @@ $ nu=1/3(1/omega-1/2)=1/3[overline(tau)-1/2]. $
 设 $bold(F)$ 为单位体积的力。带离散源项的更新可写成
 
 $
-overline(f)_i(bold(x)+bold(c)_i #dt,t+#dt)
-=overline(f)_i(bold(x),t)
+overline(f)_i (bold(x)+bold(c)_i #dt,t+#dt)
+=overline(f)_i (bold(x),t)
 -omega[overline(f)_i-f_i^("eq")]
 +#dt S_i.
 $ <forced-lbe>
@@ -240,7 +240,7 @@ rho bold(u)
 =sum_i bold(c)_i overline(f)_i + #dt/2 bold(F).
 $ <force-corrected-velocity>
 
-公式 @guo-force 与 @force-corrected-velocity 是一组，不能只取其中一个。若已知的是单位质量体力 $bold(g)$，先用 $bold(F)=rho bold(g)$ 转成力密度。不同外力方案对高阶矩的误差不同；强力、强密度梯度或多相问题不能仅凭“速度加偏移”判断一致性 @hosseini2023。
+@guo-force 与 @force-corrected-velocity 是一组，不能只取其中一个。若已知的是单位质量体力 $bold(g)$，先用 $bold(F)=rho bold(g)$ 转成力密度。不同外力方案对高阶矩的误差不同；强力、强密度梯度或多相问题不能仅凭“速度加偏移”判断一致性 @hosseini2023。
 
 常见替代方案还包括把平衡速度平移 $#du=overline(tau)bold(F)/rho$ 的 Shan–Chen 形式，以及用两个平衡分布之差表示冲量的 exact difference method。它们都能恢复目标的一阶力矩，但二阶矩和 $bold(F) ⊗ bold(F)$ 型高阶误差不同。弱力极限下看似相同的方案，在强力或非均匀力场中未必等价。
 #metadata("sym-velocity-shift") <sym-velocity-shift>
@@ -250,7 +250,7 @@ $ <force-corrected-velocity>
 迁移后，来自计算域外的某些分布未知，边界条件要重构这些入射分布。宏观条件与离散规则之间不是一一对应，必须结合格子、碰撞模型和边界位置解释误差。
 
 - 周期边界把离开一侧的同方向分布送入另一侧，适合无端点的代表性区域，也最适合先检查全局守恒。
-- 半格反弹把撞向静止固壁的碰撞后分布沿反方向送回。若反向索引满足 $bold(c)_(overline(i))=-bold(c)_i$，基本关系是 $overline(f)_(overline(i))(bold(x)_f,t+#dt)=overline(f)_i^star(bold(x)_f,t)$。在直壁、规则网格和适当碰撞参数下，它把无滑移壁面放在流体节点与固体节点之间。
+- 半格反弹把撞向静止固壁的碰撞后分布沿反方向送回。若反向索引满足 $bold(c)_(overline(i))=-bold(c)_i$，基本关系是 $overline(f)_(overline(i))(bold(x)_f,t+#dt)=overline(f)_i^star (bold(x)_f,t)$。在直壁、规则网格和适当碰撞参数下，它把无滑移壁面放在流体节点与固体节点之间。
 - 速度或压力边界通过已知宏观矩与已迁移分布重构未知方向。给定密度在等温 LBM 中等价于给定压力，因为 $p=rho c_s^2$。入口与出口离得太近时，重构误差会污染整个流场。
 - 曲面边界通常需要插值反弹、浸入边界或体素化几何。几何阶数、守恒和局部稳定性要分别验证。
 
@@ -325,7 +325,7 @@ $ <hermite-expansion>
 
 $ bold(a)_eq^(n)=rho underbrace(bold(u) ⊗ dots ⊗ bold(u))_n. $
 
-截断到 $n=2$ 就得到公式 @second-order-equilibrium 的多项式部分。截断只控制保留了哪些 Hermite 模态；还必须选择足够精确的求积，才能用有限求和恢复这些模态的矩。
+截断到 $n=2$ 就得到@second-order-equilibrium 的多项式部分。截断只控制保留了哪些 Hermite 模态；还必须选择足够精确的求积，才能用有限求和恢复这些模态的矩。
 
 若 $(bold(c)_i,w_i)$ 是 Gaussian 权下的求积点与权重，则定义离散分布
 
@@ -382,7 +382,7 @@ Psi_(e_(i alpha))
 (u_alpha/c, c_s^2/c^2+u_alpha^2/c^2).
 $ <product-equilibrium>
 
-它在 D2Q9 和 D3Q27 上自然成立，展开到 $O("Ma"^2)$ 后回到公式 @second-order-equilibrium；保留乘积形式则包含部分更高阶速度项。
+它在 D2Q9 和 D3Q27 上自然成立，展开到 $O("Ma"^2)$ 后回到@second-order-equilibrium；保留乘积形式则包含部分更高阶速度项。
 
 熵型平衡不先指定所有高阶矩，而是在质量和动量约束下最小化离散凸泛函
 
@@ -403,21 +403,21 @@ Lagrange 乘子给出 $f_i^("eq")=w_i exp(lambda_0+bold(lambda) dot bold(c)_i)$�
 $
 partial_t f_i+bold(c)_i dot nabla f_i
 =Omega_i, quad
-Omega_i=-1/tau_k(f_i-f_i^("eq")).
+Omega_i=-1/tau_k (f_i-f_i^("eq")).
 $
 
 沿第 $i$ 条特征线从 $t$ 积分到 $t+#dt$：
 
 $
-f_i(bold(x)+bold(c)_i #dt,t+#dt)-f_i(bold(x),t)
-=integral_t^(t+#dt) Omega_i(t^prime) dif t^prime.
+f_i (bold(x)+bold(c)_i #dt,t+#dt)-f_i (bold(x),t)
+=integral_t^(t+#dt) Omega_i (t^prime) dif t^prime.
 $
 
 梯形公式给出
 
 $
 integral_t^(t+#dt) Omega_i dif t^prime
-=#dt/2[Omega_i(t)+Omega_i(t+#dt)]
+=#dt/2[Omega_i (t)+Omega_i (t+#dt)]
 +O(#dt^3),
 $
 
@@ -438,7 +438,7 @@ $
 Omega_i=1/overline(tau)[f_i^("eq")-overline(f)_i].
 $
 
-代回梯形公式后，隐式项消失，得到公式 @srt-collision 与 @lattice-streaming。于是经典 collide–stream 不是对连续 BGK 碰撞作一次简单的显式 Euler 积分；它可以由梯形积分和变量变换得到二阶时间一致性。半时间步位移也由此进入公式 @derived-viscosity。
+代回梯形公式后，隐式项消失，得到@srt-collision 与 @lattice-streaming。于是经典 collide–stream 不是对连续 BGK 碰撞作一次简单的显式 Euler 积分；它可以由梯形积分和变量变换得到二阶时间一致性。半时间步位移也由此进入@derived-viscosity。
 
 许多代码把存储的 $overline(f)_i$ 仍命名为 `f_i`。这在实现中很方便，但文档与推导必须说明变量变换，否则连续 $tau_k$、离散 $overline(tau)$ 和程序参数会互相混淆。
 
@@ -469,23 +469,23 @@ $ sum_i f_i^(n)=0, quad sum_i bold(c)_i f_i^(n)=bold(0), quad n>=1. $
 
 $ f_i^(1)=-#dt/omega D_(1i)f_i^("eq"). $ <lattice-first-nonequilibrium>
 
-取零阶与一阶矩并使用公式 @discrete-equilibrium-moments，得到等温 Euler 尺度方程。$O(epsilon^2)$ 上的 $D_(1i)^2$ 项与 $f_i^(1)$ 合并，黏性系数中出现 $1/omega-1/2$。恢复到物理尺度后，
+取零阶与一阶矩并使用@discrete-equilibrium-moments，得到等温 Euler 尺度方程。$O(epsilon^2)$ 上的 $D_(1i)^2$ 项与 $f_i^(1)$ 合并，黏性系数中出现 $1/omega-1/2$。恢复到物理尺度后，
 
 $ partial_t rho+nabla ⋅ (rho bold(u))=0, $
 
 $
-partial_t(rho bold(u))
+partial_t (rho bold(u))
 +nabla ⋅ (rho bold(u) ⊗ bold(u))
 =-nabla p
 +nabla ⋅ {rho nu[nabla bold(u)+(nabla bold(u))^T]}
 +O("Ma"^3,#dt^2),
 $ <recovered-navier-stokes>
 
-其中 $p=rho c_s^2$，$nu$ 由公式 @derived-viscosity 给出。上式按弱可压缩、近似零散度条件写出；纵向声学模态的体黏性以及不同碰撞模型的高阶修正需要另行分析。
+其中 $p=rho c_s^2$，$nu$ 由@derived-viscosity 给出。上式按弱可压缩、近似零散度条件写出；纵向声学模态的体黏性以及不同碰撞模型的高阶修正需要另行分析。
 
 == 进阶阅读：Galilean 不变性与格子退化 <advanced-galilean-invariance>
 
-连续 Maxwell 平衡的三阶矩由公式 @continuous-equilibrium-tensors 给出。标准一阶邻居格子满足逐分量恒等式
+连续 Maxwell 平衡的三阶矩由@continuous-equilibrium-tensors 给出。标准一阶邻居格子满足逐分量恒等式
 
 $ c_(i alpha)^3=c^2 c_(i alpha). $
 

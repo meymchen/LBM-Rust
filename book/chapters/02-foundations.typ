@@ -40,7 +40,7 @@ $ bold(C) = bold(xi) - bold(u). $
 
 没有外力时，Boltzmann 输运方程写作
 
-$ partial_t f + bold(xi) dot nabla_bold(x) f = Omega_B[f]. $ <continuous-boltzmann>
+$ partial_t f + bold(xi) dot nabla_bold(x) f = Omega_B [f]. $ <continuous-boltzmann>
 
 左侧是自由输运。若暂时令碰撞项为零，分布沿特征线 $bold(x)(t)=bold(x)_0+bold(xi)t$ 保持不变。右侧的 $Omega_B$ 是碰撞算子，它在同一空间位置重新分配微观速度。
 #metadata("sym-boltzmann-collision") <sym-boltzmann-collision>
@@ -49,7 +49,7 @@ $ partial_t f + bold(xi) dot nabla_bold(x) f = Omega_B[f]. $ <continuous-boltzma
 
 $
 partial_t f + bold(xi) dot nabla_bold(x) f
-+ bold(g) dot nabla_bold(xi) f = Omega_B[f].
++ bold(g) dot nabla_bold(xi) f = Omega_B [f].
 $ <forced-boltzmann>
 
 这里 $bold(g)$ 的量纲是加速度，力密度为 $bold(F)=rho bold(g)$。后续离散外力项必须恢复 $bold(F)$ 的一阶矩；仅在平衡速度中随意加一个偏移，通常不能保证二阶精度。
@@ -84,7 +84,7 @@ integral bold(xi) Omega_B dif bold(xi) = bold(0), quad
 integral 1/2 bold(xi)^2 Omega_B dif bold(xi) = 0.
 $ <collision-conservation>
 
-分别对公式 @continuous-boltzmann 取这三个矩，便得到质量、动量和总能量的局部守恒。由此可见，宏观守恒律不是离散算法额外施加的修补，而是碰撞算子的零空间在宏观尺度上的投影。
+分别对@continuous-boltzmann 取这三个矩，便得到质量、动量和总能量的局部守恒。由此可见，宏观守恒律不是离散算法额外施加的修补，而是碰撞算子的零空间在宏观尺度上的投影。
 
 == 局部 Maxwell 平衡 <maxwell-equilibrium>
 
@@ -134,12 +134,12 @@ $
 
 $ bold(P) = p bold(I) + bold(Pi)^("neq"), $
 
-其中 $bold(Pi)^("neq")$ 是非平衡压力。使用公式 @collision-conservation，可以从动力学方程精确得到
+其中 $bold(Pi)^("neq")$ 是非平衡压力。使用@collision-conservation，可以从动力学方程精确得到
 
 $ partial_t rho + nabla ⋅ (rho bold(u)) = 0, $ <kinetic-continuity>
 
 $
-partial_t(rho bold(u))
+partial_t (rho bold(u))
 + nabla ⋅ [rho bold(u) ⊗ bold(u) + bold(P)]
 = rho bold(g).
 $ <kinetic-momentum>
@@ -147,7 +147,7 @@ $ <kinetic-momentum>
 总能量方程为
 
 $
-partial_t(rho E)
+partial_t (rho E)
 +nabla ⋅ [
 (rho E+p)bold(u)
 +bold(Pi)^("neq") dot bold(u)
@@ -182,7 +182,7 @@ $ <bgk-transport-coefficients>
 
 所以 $"Pr"=c_p mu/kappa=1$。真实单原子稀薄气体的 Prandtl 数接近 $2/3$，这说明单松弛 BGK 对热流动并不充分。等温、低马赫数 LBM 不演化温度和热流，通常只保留第一行所代表的黏性输运。
 
-把这些本构关系代回公式 @kinetic-continuity、@kinetic-momentum 与 @kinetic-energy，就得到可压缩 Navier–Stokes–Fourier 方程。这里的 $bold(Pi)^("neq")$ 与第一章的黏性 Cauchy 应力符号相反：动力学压力张量出现在动量通量左侧，而 Cauchy 应力出现在力项右侧，因此 $bold(tau)=-bold(Pi)^("neq")$。明确这个符号关系可以避免把黏性扩散项写反。
+把这些本构关系代回@kinetic-continuity、@kinetic-momentum 与 @kinetic-energy，就得到可压缩 Navier–Stokes–Fourier 方程。这里的 $bold(Pi)^("neq")$ 与第一章的黏性 Cauchy 应力符号相反：动力学压力张量出现在动量通量左侧，而 Cauchy 应力出现在力项右侧，因此 $bold(tau)=-bold(Pi)^("neq")$。明确这个符号关系可以避免把黏性扩散项写反。
 
 连续介质极限还要说明马赫数采用哪种缩放。可压缩极限通常取 $"Kn" << 1$ 而 $"Ma"=O(1)$；弱可压缩 LBM 则取 $"Ma" << 1$，密度扰动满足 $#drho/rho_0=O("Ma"^2)$。低马赫数不是一句模糊的“速度较小”，而是平衡分布截断与不可压缩极限成立的渐近条件。
 #metadata("sym-density-perturbation") <sym-density-perturbation>
@@ -210,7 +210,7 @@ $
 在分子混沌假设下，碰撞对的联合分布分解为 $f f_1$。利用微观可逆性，增益项和损失项可以写进同一个积分。Boltzmann 对稀薄气体碰撞输运与趋近平衡的原始论述见 @boltzmann1872：
 
 $
-Omega_B[f](bold(xi))
+Omega_B [f](bold(xi))
 = integral integral
   (f^prime f_1^prime - f f_1)
   B(g,theta)
@@ -221,7 +221,7 @@ $ <boltzmann-collision-integral>
 
 任取微观量 $phi(bold(xi))$，碰撞产生率为
 
-$ R_phi = integral phi Omega_B[f] dif bold(xi). $
+$ R_phi = integral phi Omega_B [f] dif bold(xi). $
 
 交换粒子编号，并对正、逆碰撞作变量替换，可得对称形式
 
@@ -232,7 +232,7 @@ R_phi = 1/4 integral integral integral
 B dif bold(Omega) dif bold(xi)_1 dif bold(xi).
 $ <boltzmann-transport-theorem>
 
-若 $phi$ 是碰撞不变量，第一个括号恒为零，公式 @collision-conservation 随即成立。这就是 Boltzmann 输运定理把微观碰撞守恒连接到宏观守恒的方式。
+若 $phi$ 是碰撞不变量，第一个括号恒为零，@collision-conservation 随即成立。这就是 Boltzmann 输运定理把微观碰撞守恒连接到宏观守恒的方式。
 
 == 进阶阅读：$H$ 定理与平衡分布 <advanced-h-theorem>
 
@@ -240,7 +240,7 @@ $ <boltzmann-transport-theorem>
 
 $ H[f] = integral f ln(f/f_("ref")) dif bold(xi), $
 
-其中常数 $f_("ref")$ 只负责使对数自变量无量纲，不影响导数。将 $phi=ln(f/f_("ref"))+1$ 代入公式 @boltzmann-transport-theorem，碰撞产生率为
+其中常数 $f_("ref")$ 只负责使对数自变量无量纲，不影响导数。将 $phi=ln(f/f_("ref"))+1$ 代入@boltzmann-transport-theorem，碰撞产生率为
 
 $
 sigma_H = 1/4 integral integral integral
@@ -249,7 +249,7 @@ ln[(f f_1)/(f^prime f_1^prime)]
 B dif bold(Omega) dif bold(xi)_1 dif bold(xi) <= 0.
 $ <h-production>
 
-不等式来自 $(Y-X)ln(X/Y)<=0$。在周期边界或无 $H$ 通量边界下，对空间再积分便有 $dif H_("tot")/dif t<=0$。热力学熵与 $-H_("tot")$ 成正比，因此熵不会因碰撞而减少。
+不等式来自 $(Y-X)ln(X/Y)<=0$。在周期边界或无 $H$ 通量边界下，对空间再积分便有 $(dif H_("tot")) / (dif t)<=0$。热力学熵与 $-H_("tot")$ 成正比，因此熵不会因碰撞而减少。
 
 等号成立要求详细平衡
 
@@ -259,7 +259,7 @@ $ f^prime f_1^prime = f f_1. $
 
 $ ln f^("eq") = a + bold(b) dot bold(xi) + c bold(xi)^2. $
 
-可积性要求 $c<0$。再用质量、动量和能量矩确定 $a$、$bold(b)$ 和 $c$，便得到公式 @maxwell-boltzmann。Maxwell 分布不是凭经验选取的 Gaussian；它由碰撞不变量、详细平衡和给定守恒矩共同确定。
+可积性要求 $c<0$。再用质量、动量和能量矩确定 $a$、$bold(b)$ 和 $c$，便得到@maxwell-boltzmann。Maxwell 分布不是凭经验选取的 Gaussian；它由碰撞不变量、详细平衡和给定守恒矩共同确定。
 
 == 进阶阅读：Chapman–Enskog 展开 <advanced-continuous-ce>
 
@@ -303,7 +303,7 @@ f^(1) = -tau_k f^("eq") [
 ].
 $ <bgk-first-correction>
 
-上式第一部分是二阶无迹 Hermite 模态，产生黏性应力；第二部分是三阶奇模态，产生热流。对它分别取二阶和三阶中心矩，并使用 Gaussian 积分，得到公式 @bgk-transport-coefficients。
+上式第一部分是二阶无迹 Hermite 模态，产生黏性应力；第二部分是三阶奇模态，产生热流。对它分别取二阶和三阶中心矩，并使用 Gaussian 积分，得到@bgk-transport-coefficients。
 
 这个推导也说明了矩封闭的层次。局部 Maxwell 投影只保留守恒场，得到 Euler 方程；加入 $f^(1)$ 得到 Navier–Stokes–Fourier 方程；Grad 方法则把非平衡应力和热流也当作独立变量，形成 13 矩系统。更高阶 Burnett 修正或 R13 正则化用于更强的非平衡，但不能直接当成基础等温 LBM 的精度承诺。关于这些投影、修正和动力学提升之间的关系，可参阅 @hosseini2023。
 

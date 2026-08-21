@@ -103,7 +103,7 @@
             line((0, 0), (angle, radius), stroke: guide + 2.2pt, cap: "round")
             circle((angle, radius), radius: 0.07, fill: white, stroke: ink + 0.7pt)
           }
-          content((0, -1.25), text(size: 9pt)[$f_i^"eq" = f_i^"eq"(rho, bold(u))$], anchor: "north")
+          content((0, -1.25), text(size: 9pt)[$f_i^"eq" = f_i^"eq" (rho, bold(u))$], anchor: "north")
         })
       ]
     ],
@@ -138,7 +138,7 @@
       quad arrow.r quad
       underbrace(f_i^star, "碰撞")
       quad arrow.r quad
-      underbrace(f_i(x + bold(e)_i, t + 1), "迁移")
+      underbrace(f_i (x + bold(e)_i, t + 1), "迁移")
     $]
   }
   diagram-note([碰撞只在一个格点内重分配离散分布；迁移才把碰撞后的分布送往相邻格点。])

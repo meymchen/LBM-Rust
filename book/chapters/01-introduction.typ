@@ -42,7 +42,7 @@ $
 
 $ (D phi) / (D t) = partial_t phi + bold(u) dot nabla phi. $
 
-$partial_t phi$ 是固定位置观察到的局部变化，$bold(u) dot nabla phi$ 是微团移动到不同位置产生的对流变化。对速度场使用同一运算，$D bold(u) / D t$ 就是流体微团的加速度。
+$partial_t phi$ 是固定位置观察到的局部变化，$bold(u) dot nabla phi$ 是微团移动到不同位置产生的对流变化。对速度场使用同一运算，$(D bold(u)) / (D t)$ 就是流体微团的加速度。
 
 == 质量守恒：流入、流出与局部积累 <mass-conservation>
 
@@ -101,7 +101,7 @@ $
 
 $ partial_t (rho bold(u)) + nabla ⋅ [rho bold(u) ⊗ bold(u)] = nabla ⋅ bold(sigma) + rho bold(g). $
 
-用连续性方程消去密度变化项后，左侧可以整理为 $rho D bold(u)/D t$：
+用连续性方程消去密度变化项后，左侧可以整理为 $rho (D bold(u)) / (D t)$：
 
 $ rho [partial_t bold(u) + bold(u) dot nabla bold(u)] = nabla ⋅ bold(sigma) + rho bold(g). $ <cauchy-momentum>
 
@@ -220,12 +220,12 @@ $
 
 用散度定理并利用控制体的任意性，得到
 
-$ partial_t(rho phi) + nabla ⋅ (rho phi bold(u)) = s_phi. $
+$ partial_t (rho phi) + nabla ⋅ (rho phi bold(u)) = s_phi. $
 
 展开左侧：
 
 $
-partial_t(rho phi) + nabla ⋅ (rho phi bold(u))
+partial_t (rho phi) + nabla ⋅ (rho phi bold(u))
 = rho [partial_t phi + bold(u) dot nabla phi]
 + phi [partial_t rho + nabla ⋅ (rho bold(u))].
 $
@@ -255,7 +255,7 @@ nabla ⋅ bold(sigma)
 + (mu + lambda_v) nabla(nabla ⋅ bold(u)).
 $
 
-不可压缩条件使 $nabla ⋅ bold(u) = 0$，因此最后一项为零。再除以常密度 $rho$，就得到公式 @incompressible-ns。这里每一个简化都有明确前提：常黏度、常密度和零速度散度。若温度导致黏度显著变化，$mu$ 不能移出导数；若流体可压缩，散度项也不能直接删掉。
+不可压缩条件使 $nabla ⋅ bold(u) = 0$，因此最后一项为零。再除以常密度 $rho$，就得到@incompressible-ns。这里每一个简化都有明确前提：常黏度、常密度和零速度散度。若温度导致黏度显著变化，$mu$ 不能移出导数；若流体可压缩，散度项也不能直接删掉。
 
 === 无量纲化与主导项
 
