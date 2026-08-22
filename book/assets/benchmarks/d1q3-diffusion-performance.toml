@@ -1,0 +1,13 @@
+schema_version = 1
+command = "cargo run --release --quiet -p d1q3-diffusion --bin diffusion-benchmark -- <output-directory>"
+profile = "release"
+threads = 1
+warmup_samples = 2
+measured_samples = 9
+minimum_site_updates_per_sample = 16777216
+statistic = "median and median absolute deviation"
+timed_scope = "time stepping only; initialization and final checksum excluded"
+frequency_control = "not pinned or controlled"
+source_revision = "8c94e7999f947048878023590b9072c98734f186"
+source_dirty = true
+environment = "CPU：Intel(R) Core(TM) i7-8550U CPU @ 1.80GHz；可用逻辑核：8；系统：Linux 7.0.0-30-generic；工具链：rustc 1.97.1 (8bab26f4f 2026-07-14)；目标：x86_64-unknown-linux-gnu"

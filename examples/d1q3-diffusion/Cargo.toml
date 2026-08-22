@@ -2,6 +2,7 @@
 name = "d1q3-diffusion"
 version = "0.1.0"
 description = "Compare explicit finite differences and D1Q3 LBM on the 1D diffusion equation"
+default-run = "d1q3-diffusion"
 publish = false
 edition.workspace = true
 license.workspace = true

@@ -167,6 +167,44 @@ pub struct ConvergenceRow {
     pub error_lbm_omega3half: f64,
 }
 
+/// 一个问题规模下的 FTCS 与 D1Q3 LBM 性能统计。
+pub struct PerformanceRow {
+    /// 格点数。
+    pub length: usize,
+    /// 每个计时样本包含的演化步数。
+    pub steps: usize,
+    /// 每种求解器的计时样本数。
+    pub samples: usize,
+    /// FTCS 每格点每步耗时的中位数，单位为纳秒。
+    pub ftcs_nanoseconds_per_site_step: f64,
+    /// FTCS 每格点每步耗时的中位绝对偏差，单位为纳秒。
+    pub ftcs_mad_nanoseconds_per_site_step: f64,
+    /// D1Q3 LBM 每格点每步耗时的中位数，单位为纳秒。
+    pub lbm_nanoseconds_per_site_step: f64,
+    /// D1Q3 LBM 每格点每步耗时的中位绝对偏差，单位为纳秒。
+    pub lbm_mad_nanoseconds_per_site_step: f64,
+}
+
+impl PerformanceRow {
+    /// FTCS 吞吐量，单位为百万格点更新每秒。
+    #[must_use]
+    pub fn ftcs_mlups(&self) -> f64 {
+        1_000.0 / self.ftcs_nanoseconds_per_site_step
+    }
+
+    /// D1Q3 LBM 吞吐量，单位为百万格点更新每秒。
+    #[must_use]
+    pub fn lbm_mlups(&self) -> f64 {
+        1_000.0 / self.lbm_nanoseconds_per_site_step
+    }
+
+    /// 当前实现中 FTCS 相对 D1Q3 LBM 的加速比。
+    #[must_use]
+    pub fn ftcs_speedup_over_lbm(&self) -> f64 {
+        self.lbm_nanoseconds_per_site_step / self.ftcs_nanoseconds_per_site_step
+    }
+}
+
 /// 在扩散数固定、步数随格点数平方增长的条件下执行网格收敛研究。
 #[must_use]
 pub fn convergence_study(lengths: &[usize]) -> Vec<ConvergenceRow> {
@@ -260,11 +298,48 @@ pub fn render_comparison_svg(
         .with_cell_size(450.0, 420.0)
         .render();
     let svg = SvgBackend.render_scene(&scene);
-    let description = "一维扩散正弦模态衰减的有限差分与 D1Q3 LBM 对比。\
-        左图给出相同物理时刻的型线，右图给出扩散数固定时误差随格点数的下降。\
-        扩散数为六分之一时两种方法等价且首项误差抵消，呈四阶收敛；其余参数为二阶。";
+    let description = "一维扩散正弦模态衰减的 FTCS 与 D1Q3 LBM 对比。\
+        左图给出格点数为六十四时同一无量纲时刻的型线，右图给出扩散数固定时误差随格点数的下降。\
+        扩散数为六分之一时 FTCS 实线与松弛率为一的 LBM 圆点重合，首项误差抵消而呈四阶收敛；\
+        松弛率为一点五的 LBM 呈二阶收敛。";
 
     add_accessibility_metadata(svg, "一维扩散的有限差分与 LBM 对比", description)
+}
+
+/// 使用 Kuva 生成 FTCS 与 D1Q3 LBM 的单线程吞吐量数据图。
+#[must_use]
+pub fn render_performance_svg(rows: &[PerformanceRow], environment: &str) -> String {
+    let throughput = |select: fn(&PerformanceRow) -> f64| -> Vec<(f64, f64)> {
+        rows.iter()
+            .map(|row| (row.length as f64, select(row)))
+            .collect()
+    };
+    let ftcs = LinePlot::new()
+        .with_data(throughput(PerformanceRow::ftcs_mlups))
+        .with_color("#59636f")
+        .with_stroke_width(2.0)
+        .with_legend("FTCS");
+    let lbm = LinePlot::new()
+        .with_data(throughput(PerformanceRow::lbm_mlups))
+        .with_color("#a74428")
+        .with_stroke_width(2.0)
+        .with_legend("D1Q3 LBM");
+    let plots = vec![Plot::Line(ftcs), Plot::Line(lbm)];
+    let layout = Layout::auto_from_plots(&plots)
+        .with_title("单线程发布构建吞吐量")
+        .with_x_label("格点数 N")
+        .with_y_label("吞吐量（MLUPS）")
+        .with_log_scale();
+    let scene = Figure::new(1, 1)
+        .with_plots(vec![plots])
+        .with_layouts(vec![layout])
+        .with_cell_size(760.0, 420.0)
+        .render();
+    let svg = SvgBackend.render_scene(&scene);
+    let description = format!(
+        "FTCS 与 D1Q3 LBM 当前 Rust 实现的单线程吞吐量。横轴为格点数，纵轴为百万格点更新每秒。{environment}"
+    );
+    add_accessibility_metadata(svg, "一维扩散求解器性能对比", &description)
 }
 
 fn profile_panel(positions: &[f64], profiles: &[Vec<f64>]) -> (Vec<Plot>, Layout) {
@@ -286,7 +361,7 @@ fn profile_panel(positions: &[f64], profiles: &[Vec<f64>]) -> (Vec<Plot>, Layout
         .with_color("#59636f")
         .with_stroke_width(1.6)
         .with_line_style(LineStyle::Dashed)
-        .with_legend("有限差分（r = 1/6）");
+        .with_legend("FTCS：r = 1/6");
     let lbm_omega1 = ScatterPlot::new()
         .with_data(series(&profiles[2]))
         .with_color("#a74428")
@@ -305,8 +380,8 @@ fn profile_panel(positions: &[f64], profiles: &[Vec<f64>]) -> (Vec<Plot>, Layout
         Plot::Line(lbm_omega3half),
     ];
     let layout = Layout::auto_from_plots(&plots)
-        .with_title("正弦模态衰减型线（相同物理时刻）")
-        .with_x_label("格点")
+        .with_title("正弦模态衰减（N = 64）")
+        .with_x_label("格点坐标 x/Δx")
         .with_y_label("标量");
     (plots, layout)
 }
@@ -339,11 +414,11 @@ fn convergence_panel(rows: &[ConvergenceRow]) -> (Vec<Plot>, Layout) {
         .with_data(errors(|row| row.error_fdm))
         .with_color("#59636f")
         .with_stroke_width(1.8)
-        .with_legend("有限差分（r = 1/6）");
-    let convergence_omega1 = LinePlot::new()
+        .with_legend("FTCS：r = 1/6");
+    let convergence_omega1 = ScatterPlot::new()
         .with_data(errors(|row| row.error_lbm_omega1))
         .with_color("#a74428")
-        .with_stroke_width(1.8)
+        .with_size(5.0)
         .with_legend("LBM（ω = 1）");
     let convergence_omega3half = LinePlot::new()
         .with_data(errors(|row| row.error_lbm_omega3half))
@@ -364,13 +439,13 @@ fn convergence_panel(rows: &[ConvergenceRow]) -> (Vec<Plot>, Layout) {
         .with_legend("四阶参考线");
     let plots = vec![
         Plot::Line(convergence_fdm),
-        Plot::Line(convergence_omega1),
+        Plot::Scatter(convergence_omega1),
         Plot::Line(convergence_omega3half),
         Plot::Line(convergence_reference2),
         Plot::Line(convergence_reference4),
     ];
     let layout = Layout::auto_from_plots(&plots)
-        .with_title("扩散数固定时的网格收敛")
+        .with_title("固定扩散数的网格收敛（t/t_D = 1/48）")
         .with_x_label("格点数")
         .with_y_label("归一化 L2 误差")
         .with_log_scale();
@@ -510,11 +585,37 @@ mod tests {
             "role=\"img\"",
             "aria-labelledby=\"plot-title plot-description\"",
             "解析解",
-            "有限差分（r = 1/6）",
+            "FTCS：r = 1/6",
             "LBM（ω = 1）",
             "LBM（ω = 1.5）",
             "二阶参考线",
             "四阶参考线",
+        ] {
+            assert!(svg.contains(expected), "missing SVG semantic: {expected}");
+        }
+    }
+
+    #[test]
+    fn rendered_performance_plot_preserves_semantics_and_accessibility() {
+        let rows = [PerformanceRow {
+            length: 1024,
+            steps: 16,
+            samples: 9,
+            ftcs_nanoseconds_per_site_step: 2.0,
+            ftcs_mad_nanoseconds_per_site_step: 0.1,
+            lbm_nanoseconds_per_site_step: 6.0,
+            lbm_mad_nanoseconds_per_site_step: 0.2,
+        }];
+        let svg = render_performance_svg(&rows, "测试环境");
+
+        for expected in [
+            "<title id=\"plot-title\">一维扩散求解器性能对比</title>",
+            "<desc id=\"plot-description\">",
+            "role=\"img\"",
+            "FTCS",
+            "D1Q3 LBM",
+            "MLUPS",
+            "测试环境",
         ] {
             assert!(svg.contains(expected), "missing SVG semantic: {expected}");
         }

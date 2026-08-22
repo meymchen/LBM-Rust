@@ -1,19 +1,35 @@
 #import "../symbols.typ": dt, dx
-#import "../figures/diffusion-practice.typ": diffusion-1d-problem, diffusion-1d-states, diffusion-2d-boundaries, diffusion-3d-domain, diffusion-hero
+#import "../figures/diffusion-practice.typ": diffusion-1d-problem, diffusion-1d-states, diffusion-2d-boundaries, diffusion-3d-domain, diffusion-hero, diffusion-lbm-step
 
 #pagebreak(weak: true)
 = 扩散问题实践：从一维到三维 <diffusion-practice>
 
-扩散方程是最简单的抛物型方程，也是检验任何介观数值方法的第一道关卡。本章以扩散问题为对象，按维数逐步展开工程实践。一维部分对比显式有限差分与 D1Q3 格子 Boltzmann 模型：先分别给出两种离散，解释平衡分布并用 Chapman–Enskog 展开严格导出扩散系数，再比较两种方法的异同，并用仓库中的 Rust 基准程序给出数值证据。随后讨论源项与汇的离散。二维和三维部分重点转向边界条件：给出各类常用边界的离散格式、适用性和验证算例。
+扩散方程只守恒一个标量，因此很适合用来拆解 LBM 的参数映射、碰撞、迁移和验证。本章先用一维周期问题对照有限差分与 D1Q3 LBM，再把同一套构造扩展到源项、多维格子和边界条件。算法示例采用与本仓库一致的 Rust 数据结构。
 
 与前面的流动问题相比，本章只守恒一个标量，不涉及动量和能量。这个简化让平衡分布和多尺度展开都能完整写出；同时，松弛时间公式中的半时间步修正与@derived-viscosity 的黏度公式同源，可以先在最简单的模型里看清它的来历。
 
-在具体格式之前，先建立物理图像：扩散把一个局域的标量团抹平——峰值下降、分布展宽，而总量不变。
+在具体格式之前，先建立物理图像：扩散把一个局域的标量团抹平。峰值下降，分布展宽，总量不变。
 
 #figure(
   diffusion-hero,
-  caption: [概念示意图（抽象）：标量团在三个时刻的扩散。点子密度抽象表示浓度高低，不表示粒子轨迹；包络为 Gaussian 轮廓。],
+  caption: [概念示意图：同一标量团在三个时刻的扩散。蓝色包络为高斯型线，点的疏密只编码标量高低，不表示粒子轨迹。],
 ) <diffusion-hero-figure>
+
+== 阅读路线 <diffusion-reading-route>
+
+本章有两条读法。要先把程序跑起来，可以按@diffusion-1d-problem-figure 定义问题，读完有限差分格式、D1Q3 方案和两个算法示例后直接进入@diffusion-benchmark；要核对扩散系数中的半时间步修正，再回到@diffusion-ce。二维、三维部分不重复一维推导，只说明离散速度模型和边界如何扩展。
+
+#table(
+  columns: (1.1fr, 1.45fr, 1.65fr),
+  inset: 6pt,
+  align: (left, left, left),
+  table.header([阶段], [读者要确定的量], [本章给出的证据]),
+  [定义问题], [$D$、初值、边界、目标时刻], [控制方程与解析解],
+  [映射参数], [$r$ 或 $omega$], [稳定性条件与@lattice-diffusion-number],
+  [实现单步], [$phi$ 或 $overline(f)_i$ 的数组更新], [FTCS 与 D1Q3 Rust 算法示例],
+  [验证结果], [守恒误差、型线误差、收敛阶], [可再生 CSV、数据图与测试],
+  [测量成本], [每格点每步耗时、吞吐量], [发布构建微基准与运行元数据],
+)
 
 == 扩散方程简介 <diffusion-equation-intro>
 
@@ -88,6 +104,25 @@ $ r <= 1/2. $ <fdm-stability>
 
 @ftcs-update 还有一个直接的物理解读：新值是旧值与左右邻居的加权平均，三个权重 $r$、$1-2r$、$r$ 在 $r<=1/2$ 时全非负，格式等价于一个显式随机游走的转移规则。下面会看到，LBM 用完全不同的机制——局部碰撞加格间迁移——逼近同一个目标方程。
 
+=== 算法示例：FTCS 单步 <ftcs-algorithm>
+
+周期边界可以直接写进邻居索引。下面的实现先保留旧时刻数组，再逐点写入新时刻；若原地更新，右邻居可能已经属于 $n+1$ 时刻，格式就不再是@ftcs-update。
+
+```rust
+pub fn step(&mut self) {
+    let n = self.phi.len();
+    let previous = self.phi.clone();
+
+    for (j, value) in self.phi.iter_mut().enumerate() {
+        let laplacian = previous[(j + 1) % n] - 2.0 * previous[j]
+            + previous[(j + n - 1) % n];
+        *value = previous[j] + self.diffusion_number * laplacian;
+    }
+}
+```
+
+这里的 `diffusion_number` 就是 $r$。完整实现位于 `examples/d1q3-diffusion/src/lib.rs`；它与后面的 LBM 求解器使用同一初值和解析解，避免比较时混入问题设置的差别。
+
 == 一维问题：D1Q3 格子 Boltzmann 方案 <lbm-diffusion-scheme>
 
 现在构造扩散求解器。关键观察是：扩散方程只有一个守恒量，即标量 $phi$ 本身；不需要动量守恒，也不需要状态方程。取 D1Q3 格子，$c_i in {0, c, -c}$，$c=#dx/#dt$，每个格点保存三个（经二阶时间积分变换的）分布 $overline(f)_i$，宏观量只有
@@ -117,7 +152,7 @@ $ overline(tau) = #dt/2 + D/c_s^2
 
 $ r = D #dt/#dx^2 = c_s^2/c^2 (1/omega - 1/2) = 1/3 (1/omega - 1/2). $ <lattice-diffusion-number>
 
-有限差分要求 $r<=1/2$，LBM 的名义正扩散系数只要求 $omega<2$（即 $overline(tau)>#dt/2$）。$omega<1/2$ 时 $r$ 已超出显式差分的稳定限，但对均匀状态的线性分析表明，碰撞–迁移格式在 $0<omega<2$ 内仍可保持稳定——算子分裂结构提供了纯显式差分没有的阻尼机制。当然，$omega$ 过小（$overline(tau)$ 接近 $#dt/2$）时非平衡分量增大，边界误差同样会累积，$omega in (0,2)$ 只是必要条件而非稳定性保证。
+有限差分要求 $r<=1/2$，LBM 的名义正扩散系数要求 $0<omega<2$（即 $overline(tau)>#dt/2$）。$omega<1/2$ 时 $r$ 已超出显式差分的稳定限，但对均匀状态的线性分析表明，碰撞–迁移格式在 $0<omega<2$ 内仍可保持稳定，算子分裂结构提供了纯显式差分没有的阻尼机制。当然，$omega$ 接近 $2$（$overline(tau)$ 接近 $#dt/2$）时非平衡分量和边界误差可能增大；$0<omega<2$ 只是名义范围，不是所有初值与边界下的稳定性保证。
 
 初始化用平衡分布 $overline(f)_i = w_i phi(x,0)$。周期边界直接对接；Dirichlet 边界需要重构入射分布，其格式是多维部分的主题。扩散 LBM 的更完整讨论可参阅 @mohamad2011 与 @krueger2017。
 
@@ -142,6 +177,44 @@ sum_i c_i^2 f_i^("eq") = c_s^2 phi. $ <diffusion-equilibrium-moments>
 从 Hermite 展开看，@diffusion-equilibrium-dist 是零阶截断，只保留系数 $a^("eq",(0))=phi$。它与第三章的二阶等温平衡@second-order-equilibrium 一致：令 $bold(u)=bold(0)$、$rho=phi$，后者正好退化为 $w_i phi$。扩散模型没有引入新的平衡族，只是使用无对流速度时的退化形式。
 
 还要澄清一个常见误解。$f_i^("eq")=w_i phi$ 不含速度，并不意味着模型“丢掉了通量信息”。通量 $j=sum_i c_i overline(f)_i$ 仍然存在，只是它等于非平衡一阶矩 $sum_i c_i f_i^(1)$；下一节会看到它正好恢复 Fick 定律@fick-law。
+
+=== 算法示例：D1Q3 单步 <d1q3-algorithm>
+
+@diffusion-lbm-step-figure 把一次更新拆成三个不会混淆的动作。先对每个格点求和得到 $phi$，再用同一个 $phi$ 计算三个平衡分布并完成碰撞，最后按离散速度把碰撞后分布写到目的格点。周期边界只出现在目的索引的回绕中。
+
+#figure(
+  diffusion-lbm-step,
+  caption: [概念示意图：D1Q3 的一次“宏观量恢复—碰撞—迁移”更新。三幅子图分别对应下面 Rust 示例中的求和、`post_collision` 和 `destination`。],
+) <diffusion-lbm-step-figure>
+
+```rust
+pub fn step(&mut self) {
+    let n = self.distributions.len();
+    let mut streamed = vec![[0.0; D1Q3::Q]; n];
+
+    for (j, cell) in self.distributions.iter().enumerate() {
+        let phi: f64 = cell.iter().sum();
+        let equilibrium = diffusion_equilibrium(phi);
+
+        for (i, (&velocity, &target)) in
+            D1Q3::VELOCITIES.iter().zip(&equilibrium).enumerate()
+        {
+            let post_collision = cell[i] - self.omega * (cell[i] - target);
+            let destination = match velocity {
+                0 => j,
+                1 => (j + 1) % n,
+                _ => (j + n - 1) % n,
+            };
+            streamed[destination][i] = post_collision;
+        }
+    }
+    self.distributions = streamed;
+}
+```
+
+这段代码采用推式迁移（push streaming）：当前格点计算碰撞后分布，再写到相邻格点。若改成拉式迁移（pull streaming），循环会从邻居读取所需分布；两者可以实现同一离散方程，但边界处理和内存访问方向必须随之统一。
+
+格子单位下取 $#dx=#dt=1$，若目标扩散系数为 $D=1/6$，由@lattice-diffusion-number 得 $omega=1$。于是最小算例的配置是：用 `sine_mode` 生成 $phi(x,0)$，以 $w_i phi$ 初始化三个分布，重复调用 `step`，最后用 `scalar` 求零阶矩。这个参数点还能逐步对照 FTCS，因为此时两种更新代数等价。
 
 == Chapman–Enskog 展开 <diffusion-ce>
 
@@ -264,7 +337,7 @@ $ lambda_"num"
 
 #figure(
   image("../assets/generated/d1q3-diffusion.svg", width: 92%),
-  caption: [数据图：一维正弦模态衰减的有限差分与 D1Q3 LBM 对比。子图 a 为相同物理时刻的型线；子图 b 为扩散数固定、步数随 $N^2$ 增长时的网格收敛。$omega=1$（即 $r=1/6$）时两条误差曲线重合且呈四阶下降，$omega=1.5$ 时呈二阶下降。数据由 `examples/d1q3-diffusion` 生成。],
+  caption: [数据图：一维正弦模态衰减的 FTCS 与 D1Q3 LBM 对比。子图 a 使用 $N=64$；$omega=1$ 演化 $500$ 步，$omega=1.5$ 演化 $1500$ 步，使两组数据到达同一无量纲时刻。子图 b 固定扩散数并令步数随 $N^2$ 增长。实线与圆点的重合表示 $omega=1$ 时 LBM 与 FTCS 代数等价；$omega=1.5$ 的曲线与二阶参考线平行。原始 CSV 和 SVG 由 `examples/d1q3-diffusion` 生成。],
 ) <d1q3-diffusion-plot>
 
 结果与前文的理论论断一一对应：
@@ -274,6 +347,36 @@ $ lambda_"num"
 - 魔数成立。$r=1/6$ 时两条重合的误差曲线沿四阶参考线下降；$omega=1.5$ 的 LBM 沿二阶参考线下降，说明四阶是参数抵消而非方法属性。
 
 这些检查同时在 `cargo test -p d1q3-diffusion` 中作为回归测试存在：总量守恒、$omega=1$ 等价性、实测衰减率与解析值的一致性，以及收敛阶。
+
+=== 代码性能基准 <diffusion-performance-benchmark>
+
+正确性等价并不意味着执行成本相同。仓库中的 `diffusion-benchmark` 在 $omega=1$、$r=1/6$ 下比较两个求解器的 `step`；这个参数点使两者逐步给出同一数值结果，因此计时差别来自当前代码路径，而不是精度或物理时间不同。
+
+```sh
+make diffusion-bench
+```
+
+基准使用单线程发布构建。初始化和最终校验不计时；每个样本至少推进 $2^24$ 次格点更新，先预热 $2$ 次，再交替采集每种求解器的 $9$ 个样本。CSV 报告每格点每步耗时的中位数和中位绝对偏差（MAD），吞吐量用每秒百万格点更新数（MLUPS）表示。参考运行没有绑核或锁定 CPU 频率，结果适合比较当前两个实现，不适合作为跨机器性能指标。
+
+#figure(
+  image("../assets/benchmarks/d1q3-diffusion-performance.svg", width: 86%),
+  caption: [数据图：当前 FTCS 与 D1Q3 LBM Rust 实现的单线程吞吐量。参考运行使用 Intel Core i7-8550U、Linux 7.0.0、`rustc 1.97.1` 和 `x86_64-unknown-linux-gnu` 发布构建；每点为 $9$ 个样本的中位数。完整耗时、MAD、命令和计时范围见同目录 CSV 与 TOML 元数据。],
+) <d1q3-diffusion-performance-plot>
+
+#table(
+  columns: (1fr, 1fr, 1fr, 1fr),
+  inset: 6pt,
+  align: (right, right, right, right),
+  table.header([$N$], [FTCS／MLUPS], [D1Q3 LBM／MLUPS], [FTCS 加速比]),
+  [1 024], [$252.3$], [$162.3$], [$1.55$],
+  [16 384], [$254.5$], [$163.9$], [$1.55$],
+  [262 144], [$181.0$], [$111.5$], [$1.62$],
+  [1 048 576], [$176.6$], [$105.3$], [$1.68$],
+)
+
+这次参考运行中，FTCS 比 D1Q3 LBM 快 $1.55$ 至 $1.68$ 倍。当前 FTCS 单步保留标量数组及其副本，峰值工作存储约为 $16N$ 字节；D1Q3 LBM 同时保留三个离散分布函数及迁移数组，约为 $48N$ 字节，并执行三个离散速度的碰撞和地址计算。大规模算例的吞吐量较低，与工作集逐渐越过缓存容量的现象一致，但确认具体瓶颈仍需要硬件性能计数器。
+
+这个结果只比较本章的标量、单线程基线，不能推出“有限差分总比 LBM 快”。多维边界、数据布局、缓冲区复用、向量化和并行迁移都会改变结果。基准代码把原始数据和运行元数据留在输出目录，后续优化必须在相同配置下重新测量，而不是沿用这里的加速比。
 
 == 源项与汇 <diffusion-source>
 

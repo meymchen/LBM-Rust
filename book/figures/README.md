@@ -9,6 +9,7 @@
 - `lbm-foundations.typ`：LBM 基础章节的概念示意图；
 - `diffusion-practice.typ`：扩散问题实践章节的概念示意图与章首抽象插图；
 - `../assets/generated`：由 Rust 程序确定性生成的 CSV 和 SVG，不手工编辑。数据图使用 Kuva 绘制，生成器再补充文档级 SVG 标题和描述。
+- `../assets/benchmarks`：版本化的性能参考运行，包含 CSV、SVG 和运行元数据。计时结果不参加确定性资产对比；更新时必须保留硬件、工具链、问题规模和统计方法。
 
 ## 图形语法
 

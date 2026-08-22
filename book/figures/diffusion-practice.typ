@@ -1,5 +1,5 @@
 #import "@preview/cetz:0.4.2": canvas, draw
-#import "../symbols.typ": dx
+#import "../symbols.typ": dt, dx
 #import "components.typ": collision, diagram-note, field, guide, ink, muted, panel-title, transport
 
 // 章首抽象插图：标量团在三个时刻的扩散。
@@ -189,6 +189,75 @@
     ],
   )
   diagram-note([同一套网格上，有限差分每点保存一个标量，LBM 每点保存三个分布；分布的一阶矩给出通量。])
+}
+
+// D1Q3 单步：从格点上的三个分布，到碰撞后的分布，再迁移到相邻格点。
+#let diffusion-lbm-step = {
+  grid(
+    columns: (1fr, 1fr, 1fr),
+    gutter: 10pt,
+    align: center + top,
+    [
+      #panel-title("a", [恢复宏观量])
+      #v(3pt)
+      #align(center)[
+        #canvas(length: 4.7mm, {
+          import draw: *
+          set-style(stroke: (thickness: 0.8pt, cap: "round"), mark: (scale: 0.65, fill: ink))
+
+          line((-0.25, 0), (4.25, 0), stroke: guide + 0.6pt)
+          circle((2, 0), radius: 0.08, fill: ink)
+          for (x, height, label) in ((1.35, 0.55, $overline(f)_2$), (2, 1.35, $overline(f)_0$), (2.65, 0.78, $overline(f)_1$)) {
+            line((x, 0), (x, height), stroke: transport + 1.2pt)
+            circle((x, height), radius: 0.075, fill: white, stroke: transport + 0.9pt)
+            content((x, height + 0.17), text(size: 8.5pt)[#label], anchor: "south")
+          }
+          content((2, -0.45), text(size: 9pt)[$phi = sum_i overline(f)_i$], anchor: "north")
+        })
+      ]
+    ],
+    [
+      #panel-title("b", [本地碰撞])
+      #v(3pt)
+      #align(center)[
+        #canvas(length: 4.7mm, {
+          import draw: *
+          set-style(stroke: (thickness: 0.8pt, cap: "round"), mark: (scale: 0.65, fill: collision))
+
+          circle((2, 0), radius: 0.08, fill: ink)
+          for (x, before, after) in ((1.35, 0.55, 0.68), (2, 1.35, 1.18), (2.65, 0.78, 0.72)) {
+            line((x, 0), (x, before), stroke: guide + 1pt, dash: "dashed")
+            line((x, 0), (x, after), stroke: collision + 1.3pt)
+            circle((x, after), radius: 0.075, fill: white, stroke: collision + 0.9pt)
+          }
+          content((2, 1.78), text(size: 8.5pt)[$overline(f)_i^star = overline(f)_i - omega (overline(f)_i-f_i^("eq"))$], anchor: "south")
+          content((2, -0.45), text(size: 9pt)[$sum_i overline(f)_i^star = phi$], anchor: "north")
+        })
+      ]
+    ],
+    [
+      #panel-title("c", [迁移与周期回绕])
+      #v(3pt)
+      #align(center)[
+        #canvas(length: 4.7mm, {
+          import draw: *
+          set-style(stroke: (thickness: 0.8pt, cap: "round"), mark: (scale: 0.65, fill: transport))
+
+          line((-0.2, 0), (4.2, 0), stroke: guide + 0.6pt)
+          for x in (0, 2, 4) {
+            circle((x, 0), radius: 0.08, fill: ink)
+          }
+          line((1.85, 0.55), (0.25, 0.55), stroke: transport + 1.1pt, mark: (end: "stealth", fill: transport))
+          line((2.15, 0.95), (3.75, 0.95), stroke: transport + 1.1pt, mark: (end: "stealth", fill: transport))
+          line((2, 0.15), (2, 1.35), stroke: ink + 1.1pt)
+          arc((4.35, 0.45), start: 90deg, stop: -90deg, radius: 0.38,
+            stroke: muted + 0.9pt, mark: (end: "stealth", fill: muted))
+          content((2, -0.45), text(size: 9pt)[目的格点由 $x+c_i #dt$ 决定], anchor: "north")
+        })
+      ]
+    ],
+  )
+  diagram-note([图例：蓝色表示离散分布函数及其迁移，橙色表示碰撞后的值，灰色虚线表示碰撞前的值。碰撞只改写同一格点内的三个分量；迁移只搬运，不做浮点计算。])
 }
 
 // 二维区域的边界类型与半格距壁面的入射重构。
