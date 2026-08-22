@@ -12,6 +12,25 @@
   counter(book-figure).update(0)
 }
 
+// 按章固定公式与图编号前缀。闭包在章作用域内绑定字面前缀，
+// 因此跨章 ref 渲染的是目标公式所在章的编号，而非引用处的编号。
+#let chapter-body(prefix, body) = {
+  counter(math.equation).update(0)
+  counter(book-figure).update(0)
+  set math.equation(numbering: number => [(#prefix.#number)])
+  set figure(
+    kind: "book-figure",
+    supplement: [图],
+    numbering: number => [#prefix\-#number],
+  )
+  body
+}
+
+#let chapter(body) = context chapter-body(
+  str(counter(heading).get().first() + 1),
+  body,
+)
+
 #let project(document-title: none, title: none, subtitle: none, authors: (), body) = {
   set document(
     title: if document-title == none { title } else { document-title },
