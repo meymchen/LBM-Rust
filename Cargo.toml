@@ -2,6 +2,7 @@
 members = [
     "crates/lbm-core",
     "crates/lbm-vtk",
+    "examples/d1q3-diffusion",
     "examples/d2q9-equilibrium",
     "examples/vtk-interop",
 ]

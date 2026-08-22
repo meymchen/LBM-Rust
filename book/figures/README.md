@@ -7,6 +7,7 @@
 - `components.typ`：全书共享的颜色、分面标题和说明组件；
 - `fluid-foundations.typ`：流体基础章节的概念示意图；
 - `lbm-foundations.typ`：LBM 基础章节的概念示意图；
+- `diffusion-practice.typ`：扩散问题实践章节的概念示意图与章首抽象插图；
 - `../assets/generated`：由 Rust 程序确定性生成的 CSV 和 SVG，不手工编辑。数据图使用 Kuva 绘制，生成器再补充文档级 SVG 标题和描述。
 
 ## 图形语法

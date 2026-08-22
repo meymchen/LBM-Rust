@@ -123,4 +123,13 @@
   [#typed-symbol([$bold(A)$], [矩阵])], [一步放大矩阵], [描述给定波数下分布扰动的一步线性更新。], [#source(<sym-amplification-matrix>)],
 )
 
+#pagebreak(weak: true)
+== 标量扩散
+
+#symbols(
+  [#typed-symbol([$phi$], [标量])], [扩散标量场], [浓度、温度等被输运的标量；扩散 LBM 中由 $phi=sum_i overline(f)_i$ 恢复。], [#source(<sym-scalar-field>)],
+  [#typed-symbol([$D$], [标量])], [扩散系数], [Fick 定律中的比例系数，量纲为 $L^2\/T$；扩散 LBM 中由松弛时间控制。], [#source(<sym-diffusion-coefficient>)],
+  [#typed-symbol([$R$], [标量])], [源（汇）强度], [单位体积单位时间的标量产生率；离散源项只进入零阶矩。], [#source(<sym-source-term>)],
+)
+
 #pagebreak()

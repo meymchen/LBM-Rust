@@ -73,6 +73,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "d1q3-diffusion"
+version = "0.1.0"
+dependencies = [
+ "kuva",
+ "lbm-core",
+]
+
+[[package]]
 name = "d2q9-equilibrium"
 version = "0.1.0"
 dependencies = [
