@@ -11,6 +11,10 @@ repository.workspace = true
 [dependencies]
 kuva = "0.5"
 lbm-core = { path = "../../crates/lbm-core" }
+lbm-vtk = { path = "../../crates/lbm-vtk" }
+
+[dev-dependencies]
+vtkio = "0.7.0-rc2"
 
 [lints]
 workspace = true

@@ -11,12 +11,15 @@
 // 格点数与步数远小于 2^53，usize 到 f64 的转换不会损失精度。
 #![allow(clippy::cast_precision_loss)]
 
+use std::{fs, io, path::Path};
+
 use kuva::{
     backend::svg::SvgBackend,
     prelude::{ColorMap, Heatmap, Layout, LinePlot, LineStyle, Plot, ScatterPlot},
     render::figure::Figure,
 };
 use lbm_core::{D2Q5, D2Q9, d2q5, d2q9};
+use lbm_vtk::{BoundaryKind, LatticeSnapshot2D, TimeSeriesEntry, write_time_series, write_vti};
 
 /// 网格收敛研究使用的格点数序列。
 ///
@@ -31,6 +34,165 @@ pub const PROFILE_LENGTH: usize = 64;
 ///
 /// 取值使振幅衰减到初值的约五分之一，壁面附近的误差结构才可分辨。
 pub const PROFILE_STEPS: usize = 2048;
+
+struct VtkRunConfig {
+    dimensions: [usize; 2],
+    origin: [f64; 2],
+    spacing: [f64; 2],
+    time_step: f64,
+    omega: f64,
+    snapshot_steps: [usize; 3],
+}
+
+const VTK_RUN: VtkRunConfig = VtkRunConfig {
+    dimensions: [PROFILE_LENGTH, PROFILE_LENGTH],
+    origin: [0.5, 0.5],
+    spacing: [1.0, 1.0],
+    time_step: 1.0,
+    omega: 1.0,
+    snapshot_steps: [0, PROFILE_STEPS / 2, PROFILE_STEPS],
+};
+
+/// 原子生成真实 D2Q9 二维扩散场快照、时间序列清单和运行元数据。
+///
+/// 运行采用验证图相同的 `64 × 64` 齐次 Dirichlet 单模态算例，格距和时间步均为一，
+/// 在初始时刻、演化中点和终止时刻发布压缩 VTK XML `ImageData`。生产运行目录不会被覆盖。
+///
+/// # Errors
+///
+/// 目标目录或临时目录已经存在，或任一运行资产无法完整写入并发布时返回错误。
+pub fn generate_vtk_run(output: impl AsRef<Path>) -> io::Result<()> {
+    let output = output.as_ref();
+    if output.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("refusing to overwrite {}", output.display()),
+        ));
+    }
+    let temporary = output.with_extension("tmp");
+    if temporary.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!(
+                "temporary run directory already exists: {}",
+                temporary.display()
+            ),
+        ));
+    }
+    if let Some(parent) = output.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::create_dir(&temporary)?;
+
+    let result = write_vtk_run_contents(&temporary);
+    if let Err(error) = result {
+        let _ = fs::remove_dir_all(&temporary);
+        return Err(error);
+    }
+    fs::rename(temporary, output)
+}
+
+fn write_vtk_run_contents(directory: &Path) -> io::Result<()> {
+    let config = &VTK_RUN;
+    let length = config.dimensions[0];
+    let initial = dirichlet_mode(length, 1.0);
+    let mut solver = D2q9Solver::from_scalar(
+        &initial,
+        length,
+        config.omega,
+        Boundary::Dirichlet {
+            scalar: 0.0,
+            reconstruction: Reconstruction::AntiBounceBack,
+        },
+    );
+    let boundary_kind = vec![BoundaryKind::Fluid; config.dimensions[0] * config.dimensions[1]];
+
+    let file_names = config
+        .snapshot_steps
+        .map(|step| format!("step_{step:06}.vti"));
+    let mut current_step = 0;
+    for (snapshot_step, file_name) in config.snapshot_steps.into_iter().zip(&file_names) {
+        while current_step < snapshot_step {
+            solver.step();
+            current_step += 1;
+        }
+        let scalar = solver.scalar();
+        let snapshot = LatticeSnapshot2D::new_scalar(
+            config.dimensions,
+            config.origin,
+            config.spacing,
+            &scalar,
+            &boundary_kind,
+            snapshot_step as u64,
+            snapshot_step as f64 * config.time_step,
+        )
+        .map_err(io::Error::other)?;
+        write_vti(&snapshot, directory.join(file_name)).map_err(io::Error::other)?;
+    }
+
+    fs::write(directory.join("run.toml"), vtk_run_metadata(config))?;
+    let entries = file_names
+        .iter()
+        .zip(config.snapshot_steps)
+        .map(|(file_name, step)| TimeSeriesEntry::new(file_name, step as f64 * config.time_step))
+        .collect::<Vec<_>>();
+    write_time_series(&entries, directory.join("diffusion.vti.series")).map_err(io::Error::other)
+}
+
+fn vtk_run_metadata(config: &VtkRunConfig) -> String {
+    let steps = config
+        .snapshot_steps
+        .map(|step| step.to_string())
+        .join(", ");
+    let physical_times = config
+        .snapshot_steps
+        .map(|step| format!("{:.1}", step as f64 * config.time_step))
+        .join(", ");
+    let diffusivity = lattice_diffusivity(config.omega);
+    format!(
+        concat!(
+            "schema_version = 1\n",
+            "generator_version = \"",
+            "{}",
+            "\"\n",
+            "source = \"",
+            "{}",
+            "\"\n",
+            "case = \"d2q9-homogeneous-dirichlet-diffusion\"\n",
+            "model = \"D2Q9 single-relaxation-time scalar diffusion\"\n",
+            "units = \"lattice\"\n",
+            "dimensions = [{}, {}]\n",
+            "origin = [{:.1}, {:.1}]\n",
+            "spacing = [{:.1}, {:.1}]\n",
+            "time_step = {:.1}\n",
+            "omega = {:.1}\n",
+            "diffusivity = {}\n",
+            "boundary = \"homogeneous Dirichlet, anti-bounce-back at half spacing\"\n",
+            "initial_condition = \"sin(pi x / L) sin(pi y / L)\"\n",
+            "steps = [{}]\n",
+            "physical_times = [{}]\n",
+            "fields = [\"scalar\", \"boundary_kind\"]\n",
+            "generator = \"cargo run --release -p d2q9-diffusion --bin diffusion-snapshots -- <output-directory>\"\n",
+            "validation = \"quantitative errors are computed in Rust; visualization is exploratory\"\n",
+            "limitations = \"fixed {} by {} validation case; no flow density or velocity fields\"\n",
+        ),
+        env!("CARGO_PKG_VERSION"),
+        env!("CARGO_PKG_REPOSITORY"),
+        config.dimensions[0],
+        config.dimensions[1],
+        config.origin[0],
+        config.origin[1],
+        config.spacing[0],
+        config.spacing[1],
+        config.time_step,
+        config.omega,
+        diffusivity,
+        steps,
+        physical_times,
+        config.dimensions[0],
+        config.dimensions[1],
+    )
+}
 
 /// 由松弛率计算格子单位下的扩散系数，即声速平方乘以（一除以松弛率减二分之一）。
 #[must_use]
@@ -1011,7 +1173,132 @@ fn escape_xml(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, process};
+
+    use vtkio::model::{Attribute, DataSet, IOBuffer};
+
     use super::*;
+
+    #[test]
+    fn vtk_run_publishes_real_diffusion_snapshots_and_traceable_metadata() {
+        let output = std::env::temp_dir().join(format!("d2q9-diffusion-vtk-{}", process::id()));
+        let _ = fs::remove_dir_all(&output);
+
+        generate_vtk_run(&output).unwrap();
+
+        let mut names = fs::read_dir(&output)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+            .collect::<Vec<_>>();
+        names.sort();
+        assert_eq!(
+            names,
+            [
+                "diffusion.vti.series",
+                "run.toml",
+                "step_000000.vti",
+                "step_001024.vti",
+                "step_002048.vti",
+            ]
+        );
+
+        let metadata = fs::read_to_string(output.join("run.toml")).unwrap();
+        assert_eq!(
+            metadata,
+            concat!(
+                "schema_version = 1\n",
+                "generator_version = \"0.1.0\"\n",
+                "source = \"https://github.com/meymchen/LBM-Rust\"\n",
+                "case = \"d2q9-homogeneous-dirichlet-diffusion\"\n",
+                "model = \"D2Q9 single-relaxation-time scalar diffusion\"\n",
+                "units = \"lattice\"\n",
+                "dimensions = [64, 64]\n",
+                "origin = [0.5, 0.5]\n",
+                "spacing = [1.0, 1.0]\n",
+                "time_step = 1.0\n",
+                "omega = 1.0\n",
+                "diffusivity = 0.16666666666666666\n",
+                "boundary = \"homogeneous Dirichlet, anti-bounce-back at half spacing\"\n",
+                "initial_condition = \"sin(pi x / L) sin(pi y / L)\"\n",
+                "steps = [0, 1024, 2048]\n",
+                "physical_times = [0.0, 1024.0, 2048.0]\n",
+                "fields = [\"scalar\", \"boundary_kind\"]\n",
+                "generator = \"cargo run --release -p d2q9-diffusion --bin diffusion-snapshots -- <output-directory>\"\n",
+                "validation = \"quantitative errors are computed in Rust; visualization is exploratory\"\n",
+                "limitations = \"fixed 64 by 64 validation case; no flow density or velocity fields\"\n",
+            )
+        );
+
+        let series = fs::read_to_string(output.join("diffusion.vti.series")).unwrap();
+        assert_eq!(
+            series,
+            concat!(
+                "{\n",
+                "  \"file-series-version\": \"1.0\",\n",
+                "  \"files\": [\n",
+                "    { \"name\": \"step_000000.vti\", \"time\": 0 },\n",
+                "    { \"name\": \"step_001024.vti\", \"time\": 1024 },\n",
+                "    { \"name\": \"step_002048.vti\", \"time\": 2048 }\n",
+                "  ]\n",
+                "}\n",
+            )
+        );
+
+        let initial = dirichlet_mode(PROFILE_LENGTH, 1.0);
+        let mut solver = D2q9Solver::from_scalar(
+            &initial,
+            PROFILE_LENGTH,
+            1.0,
+            Boundary::Dirichlet {
+                scalar: 0.0,
+                reconstruction: Reconstruction::AntiBounceBack,
+            },
+        );
+        let mut current_step = 0;
+        for (step, file_name) in [0, 1024, 2048].into_iter().zip([
+            "step_000000.vti",
+            "step_001024.vti",
+            "step_002048.vti",
+        ]) {
+            while current_step < step {
+                solver.step();
+                current_step += 1;
+            }
+            assert_eq!(scalar_field(&output.join(file_name)), solver.scalar());
+        }
+
+        fs::remove_dir_all(output).unwrap();
+    }
+
+    fn scalar_field(path: &std::path::Path) -> Vec<f64> {
+        let vtk = vtkio::Vtk::import(path).unwrap();
+        let DataSet::ImageData { pieces, .. } = vtk.data else {
+            panic!("expected ImageData");
+        };
+        let piece = pieces
+            .into_iter()
+            .next()
+            .unwrap()
+            .into_loaded_piece_data(None)
+            .unwrap();
+        assert_eq!(piece.data.point.len(), 2);
+        let Attribute::DataArray(array) = &piece.data.point[0] else {
+            panic!("expected scalar data array");
+        };
+        assert_eq!(array.name, "scalar");
+        let IOBuffer::F64(values) = &array.data else {
+            panic!("expected Float64 scalar values");
+        };
+        let Attribute::DataArray(boundary_kind) = &piece.data.point[1] else {
+            panic!("expected boundary_kind data array");
+        };
+        assert_eq!(boundary_kind.name, "boundary_kind");
+        assert_eq!(
+            boundary_kind.data,
+            IOBuffer::U8(vec![0; PROFILE_LENGTH * PROFILE_LENGTH])
+        );
+        values.clone()
+    }
 
     /// 测试用的格点数序列。代价随格点数四次方增长，测试止于 64。
     const TEST_LENGTHS: [usize; 3] = [16, 32, 64];
