@@ -70,12 +70,20 @@ make paraview-smoke
 
 这组数据来自确定性合成场，只检查 Rust、VTK 和 ParaView 是否正确衔接，不属于 CFD 数值验证。
 
+生成真实 D2Q9 二维扩散场的三个时间点、运行元数据和 ParaView 时间序列清单：
+
+```sh
+make diffusion-vtk
+```
+
+输出位于 `build/d2q9-diffusion-vtk`。场文件使用压缩的 VTK XML ImageData，`scalar` 表示扩散标量；定量误差仍由 Rust 验证，不从 ParaView 插值结果推断。
+
 ## 仓库结构
 
 - `crates/lbm-core`：可复用的 LBM 基础库；
 - `crates/lbm-vtk`：二维格子场快照和 VTK XML ImageData 导出；
 - `examples/d2q9-equilibrium`：确定性数据生成程序；
-- `examples/d2q9-diffusion`：D2Q5／D2Q9 二维扩散验证与发布模式性能基准；
+- `examples/d2q9-diffusion`：D2Q5／D2Q9 二维扩散验证、发布模式性能基准与真实场快照生成；
 - `examples/vtk-interop`：VTK／ParaView 互操作原型与小型场夹具；
 - `book`：可完整出版的 Typst 书稿、章节和生成数据；
 - `book/figures`：可复用的 Typst 图形组件、章节图源和插图维护约定；

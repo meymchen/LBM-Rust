@@ -164,11 +164,22 @@ pub struct LatticeSnapshot2D<'a> {
     dimensions: [usize; 2],
     origin: [f64; 2],
     spacing: [f64; 2],
-    density: &'a [f64],
-    velocity: &'a [[f64; 2]],
-    boundary_kind: &'a [BoundaryKind],
+    fields: PointFields<'a>,
     step: u64,
     physical_time: f64,
+}
+
+#[derive(Debug)]
+enum PointFields<'a> {
+    Flow {
+        density: &'a [f64],
+        velocity: &'a [[f64; 2]],
+        boundary_kind: &'a [BoundaryKind],
+    },
+    Scalar {
+        scalar: &'a [f64],
+        boundary_kind: &'a [BoundaryKind],
+    },
 }
 
 /// `ParaView` 时间序列清单中的一个场快照。
@@ -231,9 +242,57 @@ impl<'a> LatticeSnapshot2D<'a> {
             dimensions,
             origin,
             spacing,
-            density,
-            velocity,
-            boundary_kind,
+            fields: PointFields::Flow {
+                density,
+                velocity,
+                boundary_kind,
+            },
+            step,
+            physical_time,
+        })
+    }
+
+    /// 验证标量场和区域标记覆盖完整格子，并建立只读场快照。
+    ///
+    /// 标量扩散场以稳定字段名 `scalar` 导出，不冒充流动问题的密度或速度。
+    ///
+    /// # Errors
+    ///
+    /// 字段长度与格子尺寸不一致，或数值字段包含非有限值时返回错误。
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_scalar(
+        dimensions: [usize; 2],
+        origin: [f64; 2],
+        spacing: [f64; 2],
+        scalar: &'a [f64],
+        boundary_kind: &'a [BoundaryKind],
+        step: u64,
+        physical_time: f64,
+    ) -> Result<Self, SnapshotError> {
+        if let Some(axis) = dimensions.iter().position(|dimension| *dimension == 0) {
+            return Err(SnapshotError::EmptyDimension { axis });
+        }
+        let expected = dimensions[0]
+            .checked_mul(dimensions[1])
+            .ok_or(SnapshotError::DimensionProductOverflow)?;
+        validate_finite("origin", origin)?;
+        validate_finite("spacing", spacing)?;
+        validate_finite("physical_time", [physical_time])?;
+        if let Some(axis) = spacing.iter().position(|value| *value <= 0.0) {
+            return Err(SnapshotError::InvalidSpacing { axis });
+        }
+        validate_length("scalar", scalar.len(), expected)?;
+        validate_length("boundary_kind", boundary_kind.len(), expected)?;
+        validate_finite("scalar", scalar.iter().copied())?;
+
+        Ok(Self {
+            dimensions,
+            origin,
+            spacing,
+            fields: PointFields::Scalar {
+                scalar,
+                boundary_kind,
+            },
             step,
             physical_time,
         })
@@ -307,24 +366,32 @@ pub fn write_vti_ascii(
     )
     .expect("writing to a String cannot fail");
     writeln!(xml, "    <Piece Extent=\"{extent}\">").expect("writing to a String cannot fail");
-    xml.push_str("      <PointData Scalars=\"density\" Vectors=\"velocity\">\n");
-    xml.push_str("        <DataArray type=\"Float64\" Name=\"density\" format=\"ascii\">");
-    write_values(&mut xml, snapshot.density.iter().copied());
-    xml.push_str("</DataArray>\n");
-    xml.push_str("        <DataArray type=\"Float64\" Name=\"velocity\" NumberOfComponents=\"3\" format=\"ascii\">");
-    write_values(
-        &mut xml,
-        snapshot
-            .velocity
-            .iter()
-            .flat_map(|value| [value[0], value[1], 0.0]),
-    );
-    xml.push_str("</DataArray>\n");
+    match &snapshot.fields {
+        PointFields::Flow {
+            density, velocity, ..
+        } => {
+            xml.push_str("      <PointData Scalars=\"density\" Vectors=\"velocity\">\n");
+            xml.push_str("        <DataArray type=\"Float64\" Name=\"density\" format=\"ascii\">");
+            write_values(&mut xml, density.iter().copied());
+            xml.push_str("</DataArray>\n");
+            xml.push_str("        <DataArray type=\"Float64\" Name=\"velocity\" NumberOfComponents=\"3\" format=\"ascii\">");
+            write_values(
+                &mut xml,
+                velocity.iter().flat_map(|value| [value[0], value[1], 0.0]),
+            );
+            xml.push_str("</DataArray>\n");
+        }
+        PointFields::Scalar { scalar, .. } => {
+            xml.push_str("      <PointData Scalars=\"scalar\">\n");
+            xml.push_str("        <DataArray type=\"Float64\" Name=\"scalar\" format=\"ascii\">");
+            write_values(&mut xml, scalar.iter().copied());
+            xml.push_str("</DataArray>\n");
+        }
+    }
     xml.push_str("        <DataArray type=\"UInt8\" Name=\"boundary_kind\" format=\"ascii\">");
     write_values(
         &mut xml,
-        snapshot
-            .boundary_kind
+        boundary_kind(&snapshot.fields)
             .iter()
             .map(|kind| u32::from(*kind as u8)),
     );
@@ -415,22 +482,31 @@ fn snapshot_to_vtk(snapshot: &LatticeSnapshot2D<'_>) -> Result<Vtk, ExportError>
     let ny = i32::try_from(snapshot.dimensions[1])
         .map_err(|_| ExportError::DimensionTooLarge(snapshot.dimensions[1]))?;
     let extent = Extent::Ranges([0..=nx - 1, 0..=ny - 1, 0..=0]);
-    let velocity = snapshot
-        .velocity
-        .iter()
-        .flat_map(|value| [value[0], value[1], 0.0])
-        .collect::<Vec<_>>();
-    let boundary_kind = snapshot
-        .boundary_kind
+    let boundary_kind = boundary_kind(&snapshot.fields)
         .iter()
         .map(|kind| *kind as u8)
         .collect::<Vec<_>>();
-    let data = Attributes {
-        point: vec![
-            Attribute::generic("density", 1).with_data(snapshot.density.to_vec()),
-            Attribute::generic("velocity", 3).with_data(velocity),
+    let point = match &snapshot.fields {
+        PointFields::Flow {
+            density, velocity, ..
+        } => {
+            let velocity = velocity
+                .iter()
+                .flat_map(|value| [value[0], value[1], 0.0])
+                .collect::<Vec<_>>();
+            vec![
+                Attribute::generic("density", 1).with_data(density.to_vec()),
+                Attribute::generic("velocity", 3).with_data(velocity),
+                Attribute::generic("boundary_kind", 1).with_data(boundary_kind),
+            ]
+        }
+        PointFields::Scalar { scalar, .. } => vec![
+            Attribute::generic("scalar", 1).with_data(scalar.to_vec()),
             Attribute::generic("boundary_kind", 1).with_data(boundary_kind),
         ],
+    };
+    let data = Attributes {
+        point,
         cell: vec![],
     };
     let piece = ImageDataPiece {
@@ -462,6 +538,14 @@ fn snapshot_to_vtk(snapshot: &LatticeSnapshot2D<'_>) -> Result<Vtk, ExportError>
             pieces: vec![Piece::Inline(Box::new(piece))],
         },
     })
+}
+
+fn boundary_kind<'a>(fields: &'a PointFields<'_>) -> &'a [BoundaryKind] {
+    match fields {
+        PointFields::Flow { boundary_kind, .. } | PointFields::Scalar { boundary_kind, .. } => {
+            boundary_kind
+        }
+    }
 }
 
 #[allow(clippy::cast_possible_truncation)]
