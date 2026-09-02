@@ -7,7 +7,7 @@ use std::{
 };
 
 use d2q9_equilibrium::render_equilibrium_svg;
-use lbm_core::{D2Q9, equilibrium};
+use lbm_core::{D2Q9, d2q9::flow_equilibrium};
 
 fn main() -> io::Result<()> {
     let output_directory = env::args_os()
@@ -17,7 +17,7 @@ fn main() -> io::Result<()> {
 
     let density = 1.0;
     let velocity = [0.08, 0.02];
-    let distributions = equilibrium(density, velocity);
+    let distributions = flow_equilibrium(density, velocity);
 
     write_csv(
         &output_directory.join("d2q9-equilibrium.csv"),
