@@ -11,13 +11,14 @@ GENERATED_FILES := d2q9-equilibrium.csv d2q9-equilibrium.svg \
 VTK_FIXTURE_DIR := examples/vtk-interop/fixtures/reference
 PARAVIEW_SMOKE_DIR := build/paraview-smoke
 
-.PHONY: help pdf regenerate diffusion-bench rust-check vtk-smoke paraview-smoke punctuation-check math-notation-check symbol-index-check bibliography-check figure-check check-generated check
+.PHONY: help pdf regenerate diffusion-bench diffusion-2d-bench rust-check vtk-smoke paraview-smoke punctuation-check math-notation-check symbol-index-check bibliography-check figure-check check-generated check
 
 help:
 	@echo "可用目标："
 	@echo "  make pdf             使用现有数据生成 PDF"
 	@echo "  make regenerate      重新生成文档数据与 SVG"
 	@echo "  make diffusion-bench 以发布模式运行一维扩散性能基准"
+	@echo "  make diffusion-2d-bench 以发布模式运行 D2Q5／D2Q9 二维扩散性能基准"
 	@echo "  make rust-check      检查格式、Clippy 与测试"
 	@echo "  make vtk-smoke       验证 VTK 写入、读回和互操作资产"
 	@echo "  make paraview-smoke  使用 pvpython 验证三个后处理流程"
@@ -46,6 +47,10 @@ regenerate:
 diffusion-bench:
 	set -eu
 	cargo run --release --quiet -p d1q3-diffusion --bin diffusion-benchmark -- .scratch/d1q3-diffusion-benchmark
+
+diffusion-2d-bench:
+	set -eu
+	cargo run --release --quiet -p d2q9-diffusion --bin diffusion-benchmark -- .scratch/d2q5-d2q9-diffusion-benchmark
 
 rust-check:
 	set -eu
