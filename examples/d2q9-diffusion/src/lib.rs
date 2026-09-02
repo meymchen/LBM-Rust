@@ -479,6 +479,292 @@ impl D2q9Solver {
     }
 }
 
+/// D2Q9 分块布局中每块包含的格点数。
+///
+/// 块内按离散速度分组，兼顾方向连续访问与有限工作集；末块会透明填充。
+pub const D2Q9_BLOCK_SIZE: usize = 64;
+
+/// 采用结构分离（SoA）布局的二维单松弛 D2Q9 标量扩散求解器。
+///
+/// 每个离散速度拥有一个连续的 `Vec<f64>`，碰撞和迁移按离散速度遍历。
+pub struct D2q9SoaSolver {
+    length: usize,
+    omega: f64,
+    boundary: Boundary,
+    distributions: [Vec<f64>; D2Q9::Q],
+    post_collision: [Vec<f64>; D2Q9::Q],
+}
+
+impl D2q9SoaSolver {
+    /// 用平衡分布从给定标量场初始化。
+    ///
+    /// # Panics
+    ///
+    /// 当 `phi` 的长度不是 `length` 的平方时触发。
+    #[must_use]
+    pub fn from_scalar(phi: &[f64], length: usize, omega: f64, boundary: Boundary) -> Self {
+        assert_eq!(phi.len(), length * length, "标量场必须是正方形区域");
+        Self {
+            length,
+            omega,
+            boundary,
+            distributions: std::array::from_fn(|direction| {
+                phi.iter()
+                    .map(|&scalar| D2Q9::WEIGHTS[direction] * scalar)
+                    .collect()
+            }),
+            post_collision: std::array::from_fn(|_| vec![0.0; phi.len()]),
+        }
+    }
+
+    /// 推进一个时间步，使用方向连续的碰撞与拉取迁移。
+    pub fn step(&mut self) {
+        self.post_collision[0].fill(0.0);
+        for direction in 0..D2Q9::Q {
+            for (scalar, &distribution) in self.post_collision[0]
+                .iter_mut()
+                .zip(&self.distributions[direction])
+            {
+                *scalar += distribution;
+            }
+        }
+        for direction in 1..D2Q9::Q {
+            let weight = D2Q9::WEIGHTS[direction];
+            for site in 0..self.post_collision[0].len() {
+                let distribution = self.distributions[direction][site];
+                let target = weight * self.post_collision[0][site];
+                self.post_collision[direction][site] =
+                    distribution - self.omega * (distribution - target);
+            }
+        }
+        for site in 0..self.post_collision[0].len() {
+            let distribution = self.distributions[0][site];
+            let target = D2Q9::WEIGHTS[0] * self.post_collision[0][site];
+            self.post_collision[0][site] = distribution - self.omega * (distribution - target);
+        }
+
+        let length = self.length;
+        for direction in 0..D2Q9::Q {
+            let velocity = D2Q9::VELOCITIES[direction];
+            for row in 0..length {
+                for column in 0..length {
+                    let site = row * length + column;
+                    let source = upstream(column, velocity[0], length).zip(upstream(
+                        row,
+                        velocity[1],
+                        length,
+                    ));
+                    let value = source.map_or_else(
+                        || self.reconstruct(site, direction, column, row),
+                        |(source_column, source_row)| {
+                            self.post_collision[direction][source_row * length + source_column]
+                        },
+                    );
+                    self.distributions[direction][site] = value;
+                }
+            }
+        }
+    }
+
+    fn reconstruct(&self, site: usize, direction: usize, column: usize, row: usize) -> f64 {
+        reconstruct_distribution(
+            self.boundary,
+            site,
+            direction,
+            column,
+            row,
+            self.length,
+            |source_site, source_direction| self.post_collision[source_direction][source_site],
+        )
+    }
+
+    /// 返回当前标量场，即逐格点的零阶矩。
+    #[must_use]
+    pub fn scalar(&self) -> Vec<f64> {
+        let mut scalar = vec![0.0; self.length * self.length];
+        for direction in 0..D2Q9::Q {
+            for (value, &distribution) in scalar.iter_mut().zip(&self.distributions[direction]) {
+                *value += distribution;
+            }
+        }
+        scalar
+    }
+}
+
+#[derive(Clone)]
+struct BlockedD2q9Storage {
+    blocks: Vec<[[f64; D2Q9_BLOCK_SIZE]; D2Q9::Q]>,
+}
+
+impl BlockedD2q9Storage {
+    fn zeroed(sites: usize) -> Self {
+        Self {
+            blocks: vec![[[0.0; D2Q9_BLOCK_SIZE]; D2Q9::Q]; sites.div_ceil(D2Q9_BLOCK_SIZE)],
+        }
+    }
+
+    fn get(&self, site: usize, direction: usize) -> f64 {
+        self.blocks[site / D2Q9_BLOCK_SIZE][direction][site % D2Q9_BLOCK_SIZE]
+    }
+
+    fn set(&mut self, site: usize, direction: usize, value: f64) {
+        self.blocks[site / D2Q9_BLOCK_SIZE][direction][site % D2Q9_BLOCK_SIZE] = value;
+    }
+}
+
+/// 采用分块结构分离布局的二维单松弛 D2Q9 标量扩散求解器。
+///
+/// 每块包含 [`D2Q9_BLOCK_SIZE`] 个格点，块内每个离散速度连续存放。
+pub struct D2q9BlockedSolver {
+    length: usize,
+    omega: f64,
+    boundary: Boundary,
+    distributions: BlockedD2q9Storage,
+    post_collision: BlockedD2q9Storage,
+    sites: usize,
+}
+
+impl D2q9BlockedSolver {
+    /// 用平衡分布从给定标量场初始化。
+    ///
+    /// # Panics
+    ///
+    /// 当 `phi` 的长度不是 `length` 的平方时触发。
+    #[must_use]
+    pub fn from_scalar(phi: &[f64], length: usize, omega: f64, boundary: Boundary) -> Self {
+        assert_eq!(phi.len(), length * length, "标量场必须是正方形区域");
+        let mut distributions = BlockedD2q9Storage::zeroed(phi.len());
+        for (site, &scalar) in phi.iter().enumerate() {
+            for direction in 0..D2Q9::Q {
+                distributions.set(site, direction, D2Q9::WEIGHTS[direction] * scalar);
+            }
+        }
+        Self {
+            length,
+            omega,
+            boundary,
+            distributions,
+            post_collision: BlockedD2q9Storage::zeroed(phi.len()),
+            sites: phi.len(),
+        }
+    }
+
+    /// 推进一个时间步，按块完成碰撞与拉取迁移。
+    pub fn step(&mut self) {
+        for (block_index, (distributions, post_collision)) in self
+            .distributions
+            .blocks
+            .iter()
+            .zip(&mut self.post_collision.blocks)
+            .enumerate()
+        {
+            let block_start = block_index * D2Q9_BLOCK_SIZE;
+            let block_len = (self.sites - block_start).min(D2Q9_BLOCK_SIZE);
+            let mut scalar = [0.0; D2Q9_BLOCK_SIZE];
+            for direction_distributions in distributions {
+                for (value, &distribution) in
+                    scalar[..block_len].iter_mut().zip(direction_distributions)
+                {
+                    *value += distribution;
+                }
+            }
+            for direction in 0..D2Q9::Q {
+                let weight = D2Q9::WEIGHTS[direction];
+                for offset in 0..block_len {
+                    let distribution = distributions[direction][offset];
+                    let target = weight * scalar[offset];
+                    post_collision[direction][offset] =
+                        distribution - self.omega * (distribution - target);
+                }
+            }
+        }
+
+        let length = self.length;
+        for direction in 0..D2Q9::Q {
+            let velocity = D2Q9::VELOCITIES[direction];
+            for row in 0..length {
+                for column in 0..length {
+                    let site = row * length + column;
+                    let source = upstream(column, velocity[0], length).zip(upstream(
+                        row,
+                        velocity[1],
+                        length,
+                    ));
+                    let value = source.map_or_else(
+                        || self.reconstruct(site, direction, column, row),
+                        |(source_column, source_row)| {
+                            self.post_collision
+                                .get(source_row * length + source_column, direction)
+                        },
+                    );
+                    self.distributions.set(site, direction, value);
+                }
+            }
+        }
+    }
+
+    fn reconstruct(&self, site: usize, direction: usize, column: usize, row: usize) -> f64 {
+        reconstruct_distribution(
+            self.boundary,
+            site,
+            direction,
+            column,
+            row,
+            self.length,
+            |source_site, source_direction| self.post_collision.get(source_site, source_direction),
+        )
+    }
+
+    /// 返回当前标量场，即逐格点的零阶矩。
+    #[must_use]
+    pub fn scalar(&self) -> Vec<f64> {
+        let mut scalar = vec![0.0; self.sites];
+        for (block_index, distributions) in self.distributions.blocks.iter().enumerate() {
+            let block_start = block_index * D2Q9_BLOCK_SIZE;
+            let block_len = (self.sites - block_start).min(D2Q9_BLOCK_SIZE);
+            for direction_distributions in distributions {
+                for (value, &distribution) in scalar[block_start..block_start + block_len]
+                    .iter_mut()
+                    .zip(direction_distributions)
+                {
+                    *value += distribution;
+                }
+            }
+        }
+        scalar
+    }
+}
+
+fn reconstruct_distribution(
+    boundary: Boundary,
+    site: usize,
+    direction: usize,
+    column: usize,
+    row: usize,
+    length: usize,
+    distribution: impl Fn(usize, usize) -> f64,
+) -> f64 {
+    match boundary {
+        Boundary::Periodic => {
+            let velocity = D2Q9::VELOCITIES[direction];
+            let source_column = wrapped_upstream(column, velocity[0], length);
+            let source_row = wrapped_upstream(row, velocity[1], length);
+            distribution(source_row * length + source_column, direction)
+        }
+        Boundary::Adiabatic => distribution(site, d2q9::OPPOSITE[direction]),
+        Boundary::Dirichlet {
+            scalar,
+            reconstruction,
+        } => match reconstruction {
+            Reconstruction::AntiBounceBack => {
+                2.0 * D2Q9::WEIGHTS[direction] * scalar
+                    - distribution(site, d2q9::OPPOSITE[direction])
+            }
+            Reconstruction::Equilibrium => D2Q9::WEIGHTS[direction] * scalar,
+        },
+    }
+}
+
 /// D2Q5 每格点保存一组离散分布函数所需的字节数。
 pub const D2Q5_DISTRIBUTION_BYTES_PER_SITE: usize = std::mem::size_of::<[f64; D2Q5::Q]>();
 
@@ -532,6 +818,66 @@ impl LatticePerformanceRow {
     #[must_use]
     pub fn d2q5_speedup_over_d2q9(&self) -> f64 {
         self.d2q9_nanoseconds_per_site_step / self.d2q5_nanoseconds_per_site_step
+    }
+}
+
+/// 一个二维问题规模下的 D2Q9 数据布局性能统计。
+pub struct D2q9LayoutPerformanceRow {
+    /// 正方形区域的单边格点数。
+    pub length: usize,
+    /// 每个计时样本包含的迭代步数。
+    pub steps: usize,
+    /// 每种布局的计时样本数。
+    pub samples: usize,
+    /// `AoS` 每格点每步耗时的中位数，单位为纳秒。
+    pub aos_nanoseconds_per_site_step: f64,
+    /// `AoS` 每格点每步耗时的中位绝对偏差，单位为纳秒。
+    pub aos_mad_nanoseconds_per_site_step: f64,
+    /// `SoA` 每格点每步耗时的中位数，单位为纳秒。
+    pub soa_nanoseconds_per_site_step: f64,
+    /// `SoA` 每格点每步耗时的中位绝对偏差，单位为纳秒。
+    pub soa_mad_nanoseconds_per_site_step: f64,
+    /// 分块布局每格点每步耗时的中位数，单位为纳秒。
+    pub blocked_nanoseconds_per_site_step: f64,
+    /// 分块布局每格点每步耗时的中位绝对偏差，单位为纳秒。
+    pub blocked_mad_nanoseconds_per_site_step: f64,
+}
+
+impl D2q9LayoutPerformanceRow {
+    /// 区域中的格点总数。
+    #[must_use]
+    pub const fn sites(&self) -> usize {
+        self.length * self.length
+    }
+
+    /// `AoS` 吞吐量，单位为百万格点更新每秒。
+    #[must_use]
+    pub fn aos_mlups(&self) -> f64 {
+        1_000.0 / self.aos_nanoseconds_per_site_step
+    }
+
+    /// `SoA` 吞吐量，单位为百万格点更新每秒。
+    #[must_use]
+    pub fn soa_mlups(&self) -> f64 {
+        1_000.0 / self.soa_nanoseconds_per_site_step
+    }
+
+    /// 分块布局吞吐量，单位为百万格点更新每秒。
+    #[must_use]
+    pub fn blocked_mlups(&self) -> f64 {
+        1_000.0 / self.blocked_nanoseconds_per_site_step
+    }
+
+    /// `SoA` 相对 `AoS` 的吞吐加速比。
+    #[must_use]
+    pub fn soa_speedup_over_aos(&self) -> f64 {
+        self.aos_nanoseconds_per_site_step / self.soa_nanoseconds_per_site_step
+    }
+
+    /// 分块布局相对 `AoS` 的吞吐加速比。
+    #[must_use]
+    pub fn blocked_speedup_over_aos(&self) -> f64 {
+        self.aos_nanoseconds_per_site_step / self.blocked_nanoseconds_per_site_step
     }
 }
 
@@ -994,6 +1340,51 @@ pub fn render_lattice_performance_svg(rows: &[LatticePerformanceRow], environmen
          {D2Q5_WORKING_BYTES_PER_SITE} 与 {D2Q9_WORKING_BYTES_PER_SITE} 字节。{environment}"
     );
     add_accessibility_metadata(svg, "D2Q5 与 D2Q9 二维扩散性能对比", &description)
+}
+
+/// 使用 Kuva 生成 D2Q9 AoS、SoA 与分块布局的单线程吞吐量数据图。
+#[must_use]
+pub fn render_d2q9_layout_performance_svg(
+    rows: &[D2q9LayoutPerformanceRow],
+    environment: &str,
+) -> String {
+    let throughput = |select: fn(&D2q9LayoutPerformanceRow) -> f64| -> Vec<(f64, f64)> {
+        rows.iter()
+            .map(|row| (row.sites() as f64, select(row)))
+            .collect()
+    };
+    let aos = LinePlot::new()
+        .with_data(throughput(D2q9LayoutPerformanceRow::aos_mlups))
+        .with_color("#59636f")
+        .with_stroke_width(2.0)
+        .with_legend("AoS");
+    let soa = LinePlot::new()
+        .with_data(throughput(D2q9LayoutPerformanceRow::soa_mlups))
+        .with_color("#2c7a4b")
+        .with_stroke_width(2.0)
+        .with_legend("SoA");
+    let blocked = LinePlot::new()
+        .with_data(throughput(D2q9LayoutPerformanceRow::blocked_mlups))
+        .with_color("#a74428")
+        .with_stroke_width(2.0)
+        .with_legend(format!("分块（{D2Q9_BLOCK_SIZE}）"));
+    let plots = vec![Plot::Line(aos), Plot::Line(soa), Plot::Line(blocked)];
+    let layout = Layout::auto_from_plots(&plots)
+        .with_title("D2Q9 数据布局的单线程吞吐量")
+        .with_x_label("格点总数 N²")
+        .with_y_label("吞吐量（MLUPS）")
+        .with_log_scale();
+    let scene = Figure::new(1, 1)
+        .with_plots(vec![plots])
+        .with_layouts(vec![layout])
+        .with_cell_size(760.0, 420.0)
+        .render();
+    let svg = SvgBackend.render_scene(&scene);
+    let description = format!(
+        "D2Q9 当前 Rust 实现采用 AoS、SoA 与每块 {D2Q9_BLOCK_SIZE} 格点的分块布局时，\
+         单线程二维周期扩散吞吐量，单位为 MLUPS；三者逐位产生相同数值结果。{environment}"
+    );
+    add_accessibility_metadata(svg, "D2Q9 数据布局性能对比", &description)
 }
 
 fn error_field_panel(comparison: &FieldComparison) -> (Vec<Plot>, Layout) {
