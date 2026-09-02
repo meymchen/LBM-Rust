@@ -131,38 +131,51 @@ pub enum Boundary {
     Adiabatic,
 }
 
-struct LbmSolver<const Q: usize> {
-    length: usize,
-    omega: f64,
-    boundary: Boundary,
+#[derive(Clone, Copy)]
+struct LatticeDescriptor<const Q: usize> {
     velocities: [[i8; 2]; Q],
     weights: [f64; Q],
     opposite: [usize; Q],
+}
+
+const D2Q5_DESCRIPTOR: LatticeDescriptor<{ D2Q5::Q }> = LatticeDescriptor {
+    velocities: D2Q5::VELOCITIES,
+    weights: D2Q5::WEIGHTS,
+    opposite: d2q5::OPPOSITE,
+};
+
+const D2Q9_DESCRIPTOR: LatticeDescriptor<{ D2Q9::Q }> = LatticeDescriptor {
+    velocities: D2Q9::VELOCITIES,
+    weights: D2Q9::WEIGHTS,
+    opposite: d2q9::OPPOSITE,
+};
+
+struct ScalarDiffusionSolver2d<const Q: usize> {
+    length: usize,
+    omega: f64,
+    boundary: Boundary,
+    lattice: LatticeDescriptor<Q>,
     distributions: Vec<[f64; Q]>,
     post_collision: Vec<[f64; Q]>,
 }
 
-impl<const Q: usize> LbmSolver<Q> {
+impl<const Q: usize> ScalarDiffusionSolver2d<Q> {
     fn from_scalar(
         phi: &[f64],
         length: usize,
         omega: f64,
         boundary: Boundary,
-        velocities: [[i8; 2]; Q],
-        weights: [f64; Q],
-        opposite: [usize; Q],
+        lattice: LatticeDescriptor<Q>,
     ) -> Self {
         assert_eq!(phi.len(), length * length, "标量场必须是正方形区域");
         Self {
             length,
             omega,
             boundary,
-            velocities,
-            weights,
-            opposite,
+            lattice,
             distributions: phi
                 .iter()
-                .map(|&scalar| weights.map(|w| w * scalar))
+                .map(|&scalar| lattice.weights.map(|weight| weight * scalar))
                 .collect(),
             post_collision: vec![[0.0; Q]; length * length],
         }
@@ -171,7 +184,7 @@ impl<const Q: usize> LbmSolver<Q> {
     fn step(&mut self) {
         for (site, cell) in self.distributions.iter().enumerate() {
             let scalar: f64 = cell.iter().sum();
-            let target = self.weights.map(|weight| weight * scalar);
+            let target = self.lattice.weights.map(|weight| weight * scalar);
             for direction in 0..Q {
                 self.post_collision[site][direction] =
                     cell[direction] - self.omega * (cell[direction] - target[direction]);
@@ -183,7 +196,7 @@ impl<const Q: usize> LbmSolver<Q> {
             for column in 0..length {
                 let site = row * length + column;
                 for direction in 0..Q {
-                    let velocity = self.velocities[direction];
+                    let velocity = self.lattice.velocities[direction];
                     let source = upstream(column, velocity[0], length).zip(upstream(
                         row,
                         velocity[1],
@@ -204,22 +217,22 @@ impl<const Q: usize> LbmSolver<Q> {
     fn reconstruct(&self, site: usize, direction: usize, column: usize, row: usize) -> f64 {
         match self.boundary {
             Boundary::Periodic => {
-                let velocity = self.velocities[direction];
+                let velocity = self.lattice.velocities[direction];
                 let source_column = wrapped_upstream(column, velocity[0], self.length);
                 let source_row = wrapped_upstream(row, velocity[1], self.length);
                 self.post_collision[source_row * self.length + source_column][direction]
             }
             // 入射等于出射使法向一阶矩为零，把零通量放在半格距壁面处。
-            Boundary::Adiabatic => self.post_collision[site][self.opposite[direction]],
+            Boundary::Adiabatic => self.post_collision[site][self.lattice.opposite[direction]],
             Boundary::Dirichlet {
                 scalar,
                 reconstruction,
             } => match reconstruction {
                 Reconstruction::AntiBounceBack => {
-                    2.0 * self.weights[direction] * scalar
-                        - self.post_collision[site][self.opposite[direction]]
+                    2.0 * self.lattice.weights[direction] * scalar
+                        - self.post_collision[site][self.lattice.opposite[direction]]
                 }
-                Reconstruction::Equilibrium => self.weights[direction] * scalar,
+                Reconstruction::Equilibrium => self.lattice.weights[direction] * scalar,
             },
         }
     }
@@ -235,7 +248,7 @@ impl<const Q: usize> LbmSolver<Q> {
 /// 二维单松弛 D2Q5 标量扩散求解器。
 ///
 /// 分布函数按 `AoS` 布局存放，并复用与 D2Q9 相同的碰撞、迁移和边界重构内核。
-pub struct D2q5Solver(LbmSolver<{ D2Q5::Q }>);
+pub struct D2q5Solver(ScalarDiffusionSolver2d<{ D2Q5::Q }>);
 
 impl D2q5Solver {
     /// 用平衡分布从给定标量场初始化。
@@ -245,14 +258,12 @@ impl D2q5Solver {
     /// 当 `phi` 的长度不是 `length` 的平方时触发。
     #[must_use]
     pub fn from_scalar(phi: &[f64], length: usize, omega: f64, boundary: Boundary) -> Self {
-        Self(LbmSolver::from_scalar(
+        Self(ScalarDiffusionSolver2d::from_scalar(
             phi,
             length,
             omega,
             boundary,
-            D2Q5::VELOCITIES,
-            D2Q5::WEIGHTS,
-            d2q5::OPPOSITE,
+            D2Q5_DESCRIPTOR,
         ))
     }
 
@@ -272,7 +283,7 @@ impl D2q5Solver {
 ///
 /// 分布函数按 `AoS` 布局存放。这是有意保留的待优化基线：布局对比属于性能实践，
 /// 需要先有可比较的标量基线和一组固定的正确性测试。
-pub struct D2q9Solver(LbmSolver<{ D2Q9::Q }>);
+pub struct D2q9Solver(ScalarDiffusionSolver2d<{ D2Q9::Q }>);
 
 impl D2q9Solver {
     /// 用平衡分布从给定标量场初始化。
@@ -282,14 +293,12 @@ impl D2q9Solver {
     /// 当 `phi` 的长度不是 `length` 的平方时触发。
     #[must_use]
     pub fn from_scalar(phi: &[f64], length: usize, omega: f64, boundary: Boundary) -> Self {
-        Self(LbmSolver::from_scalar(
+        Self(ScalarDiffusionSolver2d::from_scalar(
             phi,
             length,
             omega,
             boundary,
-            D2Q9::VELOCITIES,
-            D2Q9::WEIGHTS,
-            d2q9::OPPOSITE,
+            D2Q9_DESCRIPTOR,
         ))
     }
 

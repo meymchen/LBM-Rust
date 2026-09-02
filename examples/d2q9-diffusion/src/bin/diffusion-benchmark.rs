@@ -24,6 +24,8 @@ const WARMUP_SAMPLES: usize = 2;
 const MEASURED_SAMPLES: usize = 9;
 
 fn main() -> io::Result<()> {
+    let source_revision = command_output("git", &["rev-parse", "HEAD"]);
+    let source_dirty = !command_output("git", &["status", "--porcelain"]).is_empty();
     let output_directory = env::args_os().nth(1).map_or_else(
         || PathBuf::from(".scratch/d2q5-d2q9-diffusion-benchmark"),
         PathBuf::from,
@@ -43,6 +45,8 @@ fn main() -> io::Result<()> {
     write_metadata(
         &output_directory.join("d2q5-d2q9-diffusion-performance.toml"),
         &environment,
+        &source_revision,
+        source_dirty,
     )?;
 
     println!("{environment}");
@@ -178,9 +182,12 @@ fn write_csv(path: &Path, rows: &[LatticePerformanceRow]) -> io::Result<()> {
     Ok(())
 }
 
-fn write_metadata(path: &Path, environment: &str) -> io::Result<()> {
-    let source_revision = command_output("git", &["rev-parse", "HEAD"]);
-    let source_status = command_output("git", &["status", "--porcelain"]);
+fn write_metadata(
+    path: &Path,
+    environment: &str,
+    source_revision: &str,
+    source_dirty: bool,
+) -> io::Result<()> {
     let mut output = io::BufWriter::new(fs::File::create(path)?);
     writeln!(output, "schema_version = 1")?;
     writeln!(
@@ -226,9 +233,9 @@ fn write_metadata(path: &Path, environment: &str) -> io::Result<()> {
     writeln!(
         output,
         "source_revision = \"{}\"",
-        escape_toml(&source_revision)
+        escape_toml(source_revision)
     )?;
-    writeln!(output, "source_dirty = {}", !source_status.is_empty())?;
+    writeln!(output, "source_dirty = {source_dirty}")?;
     writeln!(output, "environment = \"{}\"", escape_toml(environment))?;
     Ok(())
 }
