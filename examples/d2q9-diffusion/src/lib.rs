@@ -35,7 +35,23 @@ pub const PROFILE_LENGTH: usize = 64;
 /// 取值使振幅衰减到初值的约五分之一，壁面附近的误差结构才可分辨。
 pub const PROFILE_STEPS: usize = 2048;
 
-const VTK_SNAPSHOT_STEPS: [usize; 3] = [0, PROFILE_STEPS / 2, PROFILE_STEPS];
+struct VtkRunConfig {
+    dimensions: [usize; 2],
+    origin: [f64; 2],
+    spacing: [f64; 2],
+    time_step: f64,
+    omega: f64,
+    snapshot_steps: [usize; 3],
+}
+
+const VTK_RUN: VtkRunConfig = VtkRunConfig {
+    dimensions: [PROFILE_LENGTH, PROFILE_LENGTH],
+    origin: [0.5, 0.5],
+    spacing: [1.0, 1.0],
+    time_step: 1.0,
+    omega: 1.0,
+    snapshot_steps: [0, PROFILE_STEPS / 2, PROFILE_STEPS],
+};
 
 /// 原子生成真实 D2Q9 二维扩散场快照、时间序列清单和运行元数据。
 ///
@@ -77,54 +93,62 @@ pub fn generate_vtk_run(output: impl AsRef<Path>) -> io::Result<()> {
 }
 
 fn write_vtk_run_contents(directory: &Path) -> io::Result<()> {
-    let omega = 1.0;
-    let initial = dirichlet_mode(PROFILE_LENGTH, 1.0);
+    let config = &VTK_RUN;
+    let length = config.dimensions[0];
+    let initial = dirichlet_mode(length, 1.0);
     let mut solver = D2q9Solver::from_scalar(
         &initial,
-        PROFILE_LENGTH,
-        omega,
+        length,
+        config.omega,
         Boundary::Dirichlet {
             scalar: 0.0,
             reconstruction: Reconstruction::AntiBounceBack,
         },
     );
-    let boundary_kind = vec![BoundaryKind::Fluid; PROFILE_LENGTH * PROFILE_LENGTH];
+    let boundary_kind = vec![BoundaryKind::Fluid; config.dimensions[0] * config.dimensions[1]];
 
-    let file_names = VTK_SNAPSHOT_STEPS.map(|step| format!("step_{step:06}.vti"));
+    let file_names = config
+        .snapshot_steps
+        .map(|step| format!("step_{step:06}.vti"));
     let mut current_step = 0;
-    for (snapshot_step, file_name) in VTK_SNAPSHOT_STEPS.into_iter().zip(&file_names) {
+    for (snapshot_step, file_name) in config.snapshot_steps.into_iter().zip(&file_names) {
         while current_step < snapshot_step {
             solver.step();
             current_step += 1;
         }
         let scalar = solver.scalar();
         let snapshot = LatticeSnapshot2D::new_scalar(
-            [PROFILE_LENGTH, PROFILE_LENGTH],
-            [0.5, 0.5],
-            [1.0, 1.0],
+            config.dimensions,
+            config.origin,
+            config.spacing,
             &scalar,
             &boundary_kind,
             snapshot_step as u64,
-            snapshot_step as f64,
+            snapshot_step as f64 * config.time_step,
         )
         .map_err(io::Error::other)?;
         write_vti(&snapshot, directory.join(file_name)).map_err(io::Error::other)?;
     }
 
-    fs::write(directory.join("run.toml"), vtk_run_metadata())?;
+    fs::write(directory.join("run.toml"), vtk_run_metadata(config))?;
     let entries = file_names
         .iter()
-        .zip(VTK_SNAPSHOT_STEPS)
-        .map(|(file_name, step)| TimeSeriesEntry::new(file_name, step as f64))
+        .zip(config.snapshot_steps)
+        .map(|(file_name, step)| TimeSeriesEntry::new(file_name, step as f64 * config.time_step))
         .collect::<Vec<_>>();
     write_time_series(&entries, directory.join("diffusion.vti.series")).map_err(io::Error::other)
 }
 
-fn vtk_run_metadata() -> String {
-    let steps = VTK_SNAPSHOT_STEPS.map(|step| step.to_string()).join(", ");
-    let physical_times = VTK_SNAPSHOT_STEPS
-        .map(|step| format!("{step}.0"))
+fn vtk_run_metadata(config: &VtkRunConfig) -> String {
+    let steps = config
+        .snapshot_steps
+        .map(|step| step.to_string())
         .join(", ");
+    let physical_times = config
+        .snapshot_steps
+        .map(|step| format!("{:.1}", step as f64 * config.time_step))
+        .join(", ");
+    let diffusivity = lattice_diffusivity(config.omega);
     format!(
         concat!(
             "schema_version = 1\n",
@@ -137,12 +161,12 @@ fn vtk_run_metadata() -> String {
             "case = \"d2q9-homogeneous-dirichlet-diffusion\"\n",
             "model = \"D2Q9 single-relaxation-time scalar diffusion\"\n",
             "units = \"lattice\"\n",
-            "dimensions = [64, 64]\n",
-            "origin = [0.5, 0.5]\n",
-            "spacing = [1.0, 1.0]\n",
-            "time_step = 1.0\n",
-            "omega = 1.0\n",
-            "diffusivity = 0.16666666666666666\n",
+            "dimensions = [{}, {}]\n",
+            "origin = [{:.1}, {:.1}]\n",
+            "spacing = [{:.1}, {:.1}]\n",
+            "time_step = {:.1}\n",
+            "omega = {:.1}\n",
+            "diffusivity = {}\n",
             "boundary = \"homogeneous Dirichlet, anti-bounce-back at half spacing\"\n",
             "initial_condition = \"sin(pi x / L) sin(pi y / L)\"\n",
             "steps = [{}]\n",
@@ -150,12 +174,23 @@ fn vtk_run_metadata() -> String {
             "fields = [\"scalar\", \"boundary_kind\"]\n",
             "generator = \"cargo run --release -p d2q9-diffusion --bin diffusion-snapshots -- <output-directory>\"\n",
             "validation = \"quantitative errors are computed in Rust; visualization is exploratory\"\n",
-            "limitations = \"fixed 64 by 64 validation case; no flow density or velocity fields\"\n",
+            "limitations = \"fixed {} by {} validation case; no flow density or velocity fields\"\n",
         ),
         env!("CARGO_PKG_VERSION"),
         env!("CARGO_PKG_REPOSITORY"),
+        config.dimensions[0],
+        config.dimensions[1],
+        config.origin[0],
+        config.origin[1],
+        config.spacing[0],
+        config.spacing[1],
+        config.time_step,
+        config.omega,
+        diffusivity,
         steps,
         physical_times,
+        config.dimensions[0],
+        config.dimensions[1],
     )
 }
 
