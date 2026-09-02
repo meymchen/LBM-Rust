@@ -217,18 +217,7 @@ impl<'a> LatticeSnapshot2D<'a> {
         step: u64,
         physical_time: f64,
     ) -> Result<Self, SnapshotError> {
-        if let Some(axis) = dimensions.iter().position(|dimension| *dimension == 0) {
-            return Err(SnapshotError::EmptyDimension { axis });
-        }
-        let expected = dimensions[0]
-            .checked_mul(dimensions[1])
-            .ok_or(SnapshotError::DimensionProductOverflow)?;
-        validate_finite("origin", origin)?;
-        validate_finite("spacing", spacing)?;
-        validate_finite("physical_time", [physical_time])?;
-        if let Some(axis) = spacing.iter().position(|value| *value <= 0.0) {
-            return Err(SnapshotError::InvalidSpacing { axis });
-        }
+        let expected = validate_snapshot_header(dimensions, origin, spacing, physical_time)?;
         validate_length("density", density.len(), expected)?;
         validate_length("velocity", velocity.len(), expected)?;
         validate_length("boundary_kind", boundary_kind.len(), expected)?;
@@ -269,18 +258,7 @@ impl<'a> LatticeSnapshot2D<'a> {
         step: u64,
         physical_time: f64,
     ) -> Result<Self, SnapshotError> {
-        if let Some(axis) = dimensions.iter().position(|dimension| *dimension == 0) {
-            return Err(SnapshotError::EmptyDimension { axis });
-        }
-        let expected = dimensions[0]
-            .checked_mul(dimensions[1])
-            .ok_or(SnapshotError::DimensionProductOverflow)?;
-        validate_finite("origin", origin)?;
-        validate_finite("spacing", spacing)?;
-        validate_finite("physical_time", [physical_time])?;
-        if let Some(axis) = spacing.iter().position(|value| *value <= 0.0) {
-            return Err(SnapshotError::InvalidSpacing { axis });
-        }
+        let expected = validate_snapshot_header(dimensions, origin, spacing, physical_time)?;
         validate_length("scalar", scalar.len(), expected)?;
         validate_length("boundary_kind", boundary_kind.len(), expected)?;
         validate_finite("scalar", scalar.iter().copied())?;
@@ -297,6 +275,27 @@ impl<'a> LatticeSnapshot2D<'a> {
             physical_time,
         })
     }
+}
+
+fn validate_snapshot_header(
+    dimensions: [usize; 2],
+    origin: [f64; 2],
+    spacing: [f64; 2],
+    physical_time: f64,
+) -> Result<usize, SnapshotError> {
+    if let Some(axis) = dimensions.iter().position(|dimension| *dimension == 0) {
+        return Err(SnapshotError::EmptyDimension { axis });
+    }
+    let expected = dimensions[0]
+        .checked_mul(dimensions[1])
+        .ok_or(SnapshotError::DimensionProductOverflow)?;
+    validate_finite("origin", origin)?;
+    validate_finite("spacing", spacing)?;
+    validate_finite("physical_time", [physical_time])?;
+    if let Some(axis) = spacing.iter().position(|value| *value <= 0.0) {
+        return Err(SnapshotError::InvalidSpacing { axis });
+    }
+    Ok(expected)
 }
 
 fn validate_finite(

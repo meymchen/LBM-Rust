@@ -90,8 +90,9 @@ fn write_vtk_run_contents(directory: &Path) -> io::Result<()> {
     );
     let boundary_kind = vec![BoundaryKind::Fluid; PROFILE_LENGTH * PROFILE_LENGTH];
 
+    let file_names = VTK_SNAPSHOT_STEPS.map(|step| format!("step_{step:06}.vti"));
     let mut current_step = 0;
-    for snapshot_step in VTK_SNAPSHOT_STEPS {
+    for (snapshot_step, file_name) in VTK_SNAPSHOT_STEPS.into_iter().zip(&file_names) {
         while current_step < snapshot_step {
             solver.step();
             current_step += 1;
@@ -107,50 +108,54 @@ fn write_vtk_run_contents(directory: &Path) -> io::Result<()> {
             snapshot_step as f64,
         )
         .map_err(io::Error::other)?;
-        write_vti(
-            &snapshot,
-            directory.join(format!("step_{snapshot_step:06}.vti")),
-        )
-        .map_err(io::Error::other)?;
+        write_vti(&snapshot, directory.join(file_name)).map_err(io::Error::other)?;
     }
 
     fs::write(directory.join("run.toml"), vtk_run_metadata())?;
-    write_time_series(
-        &[
-            TimeSeriesEntry::new("step_000000.vti", 0.0),
-            TimeSeriesEntry::new("step_001024.vti", 1024.0),
-            TimeSeriesEntry::new("step_002048.vti", 2048.0),
-        ],
-        directory.join("diffusion.vti.series"),
-    )
-    .map_err(io::Error::other)
+    let entries = file_names
+        .iter()
+        .zip(VTK_SNAPSHOT_STEPS)
+        .map(|(file_name, step)| TimeSeriesEntry::new(file_name, step as f64))
+        .collect::<Vec<_>>();
+    write_time_series(&entries, directory.join("diffusion.vti.series")).map_err(io::Error::other)
 }
 
-fn vtk_run_metadata() -> &'static str {
-    concat!(
-        "schema_version = 1\n",
-        "generator_version = \"",
+fn vtk_run_metadata() -> String {
+    let steps = VTK_SNAPSHOT_STEPS.map(|step| step.to_string()).join(", ");
+    let physical_times = VTK_SNAPSHOT_STEPS
+        .map(|step| format!("{step}.0"))
+        .join(", ");
+    format!(
+        concat!(
+            "schema_version = 1\n",
+            "generator_version = \"",
+            "{}",
+            "\"\n",
+            "source = \"",
+            "{}",
+            "\"\n",
+            "case = \"d2q9-homogeneous-dirichlet-diffusion\"\n",
+            "model = \"D2Q9 single-relaxation-time scalar diffusion\"\n",
+            "units = \"lattice\"\n",
+            "dimensions = [64, 64]\n",
+            "origin = [0.5, 0.5]\n",
+            "spacing = [1.0, 1.0]\n",
+            "time_step = 1.0\n",
+            "omega = 1.0\n",
+            "diffusivity = 0.16666666666666666\n",
+            "boundary = \"homogeneous Dirichlet, anti-bounce-back at half spacing\"\n",
+            "initial_condition = \"sin(pi x / L) sin(pi y / L)\"\n",
+            "steps = [{}]\n",
+            "physical_times = [{}]\n",
+            "fields = [\"scalar\", \"boundary_kind\"]\n",
+            "generator = \"cargo run --release -p d2q9-diffusion --bin diffusion-snapshots -- <output-directory>\"\n",
+            "validation = \"quantitative errors are computed in Rust; visualization is exploratory\"\n",
+            "limitations = \"fixed 64 by 64 validation case; no flow density or velocity fields\"\n",
+        ),
         env!("CARGO_PKG_VERSION"),
-        "\"\n",
-        "source = \"",
         env!("CARGO_PKG_REPOSITORY"),
-        "\"\n",
-        "case = \"d2q9-homogeneous-dirichlet-diffusion\"\n",
-        "model = \"D2Q9 single-relaxation-time scalar diffusion\"\n",
-        "units = \"lattice\"\n",
-        "dimensions = [64, 64]\n",
-        "origin = [0.5, 0.5]\n",
-        "spacing = [1.0, 1.0]\n",
-        "time_step = 1.0\n",
-        "omega = 1.0\n",
-        "diffusivity = 0.16666666666666666\n",
-        "boundary = \"homogeneous Dirichlet, anti-bounce-back at half spacing\"\n",
-        "initial_condition = \"sin(pi x / L) sin(pi y / L)\"\n",
-        "steps = [0, 1024, 2048]\n",
-        "physical_times = [0.0, 1024.0, 2048.0]\n",
-        "fields = [\"scalar\", \"boundary_kind\"]\n",
-        "generator = \"cargo run --release -p d2q9-diffusion --bin diffusion-snapshots -- <output-directory>\"\n",
-        "validation = \"quantitative errors are computed in Rust; visualization is exploratory\"\n",
+        steps,
+        physical_times,
     )
 }
 
@@ -1163,19 +1168,69 @@ mod tests {
         );
 
         let metadata = fs::read_to_string(output.join("run.toml")).unwrap();
-        assert!(metadata.contains("case = \"d2q9-homogeneous-dirichlet-diffusion\""));
-        assert!(metadata.contains("dimensions = [64, 64]"));
-        assert!(metadata.contains("steps = [0, 1024, 2048]"));
-        assert!(metadata.contains("fields = [\"scalar\", \"boundary_kind\"]"));
-        assert!(metadata.contains("units = \"lattice\""));
+        assert_eq!(
+            metadata,
+            concat!(
+                "schema_version = 1\n",
+                "generator_version = \"0.1.0\"\n",
+                "source = \"https://github.com/meymchen/LBM-Rust\"\n",
+                "case = \"d2q9-homogeneous-dirichlet-diffusion\"\n",
+                "model = \"D2Q9 single-relaxation-time scalar diffusion\"\n",
+                "units = \"lattice\"\n",
+                "dimensions = [64, 64]\n",
+                "origin = [0.5, 0.5]\n",
+                "spacing = [1.0, 1.0]\n",
+                "time_step = 1.0\n",
+                "omega = 1.0\n",
+                "diffusivity = 0.16666666666666666\n",
+                "boundary = \"homogeneous Dirichlet, anti-bounce-back at half spacing\"\n",
+                "initial_condition = \"sin(pi x / L) sin(pi y / L)\"\n",
+                "steps = [0, 1024, 2048]\n",
+                "physical_times = [0.0, 1024.0, 2048.0]\n",
+                "fields = [\"scalar\", \"boundary_kind\"]\n",
+                "generator = \"cargo run --release -p d2q9-diffusion --bin diffusion-snapshots -- <output-directory>\"\n",
+                "validation = \"quantitative errors are computed in Rust; visualization is exploratory\"\n",
+                "limitations = \"fixed 64 by 64 validation case; no flow density or velocity fields\"\n",
+            )
+        );
 
         let series = fs::read_to_string(output.join("diffusion.vti.series")).unwrap();
-        assert!(series.contains("{ \"name\": \"step_001024.vti\", \"time\": 1024 }"));
+        assert_eq!(
+            series,
+            concat!(
+                "{\n",
+                "  \"file-series-version\": \"1.0\",\n",
+                "  \"files\": [\n",
+                "    { \"name\": \"step_000000.vti\", \"time\": 0 },\n",
+                "    { \"name\": \"step_001024.vti\", \"time\": 1024 },\n",
+                "    { \"name\": \"step_002048.vti\", \"time\": 2048 }\n",
+                "  ]\n",
+                "}\n",
+            )
+        );
 
-        let initial = scalar_field(&output.join("step_000000.vti"));
-        let final_field = scalar_field(&output.join("step_002048.vti"));
-        assert_eq!(initial.len(), PROFILE_LENGTH * PROFILE_LENGTH);
-        assert!(final_field.iter().sum::<f64>() < initial.iter().sum::<f64>());
+        let initial = dirichlet_mode(PROFILE_LENGTH, 1.0);
+        let mut solver = D2q9Solver::from_scalar(
+            &initial,
+            PROFILE_LENGTH,
+            1.0,
+            Boundary::Dirichlet {
+                scalar: 0.0,
+                reconstruction: Reconstruction::AntiBounceBack,
+            },
+        );
+        let mut current_step = 0;
+        for (step, file_name) in [0, 1024, 2048].into_iter().zip([
+            "step_000000.vti",
+            "step_001024.vti",
+            "step_002048.vti",
+        ]) {
+            while current_step < step {
+                solver.step();
+                current_step += 1;
+            }
+            assert_eq!(scalar_field(&output.join(file_name)), solver.scalar());
+        }
 
         fs::remove_dir_all(output).unwrap();
     }
@@ -1191,6 +1246,7 @@ mod tests {
             .unwrap()
             .into_loaded_piece_data(None)
             .unwrap();
+        assert_eq!(piece.data.point.len(), 2);
         let Attribute::DataArray(array) = &piece.data.point[0] else {
             panic!("expected scalar data array");
         };
@@ -1198,6 +1254,14 @@ mod tests {
         let IOBuffer::F64(values) = &array.data else {
             panic!("expected Float64 scalar values");
         };
+        let Attribute::DataArray(boundary_kind) = &piece.data.point[1] else {
+            panic!("expected boundary_kind data array");
+        };
+        assert_eq!(boundary_kind.name, "boundary_kind");
+        assert_eq!(
+            boundary_kind.data,
+            IOBuffer::U8(vec![0; PROFILE_LENGTH * PROFILE_LENGTH])
+        );
         values.clone()
     }
 

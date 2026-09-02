@@ -76,7 +76,7 @@ make paraview-smoke
 make diffusion-vtk
 ```
 
-输出位于 `build/d2q9-diffusion-vtk`。场文件使用压缩的 VTK XML ImageData，`scalar` 表示扩散标量；定量误差仍由 Rust 验证，不从 ParaView 插值结果推断。
+输出位于 `build/d2q9-diffusion-vtk`。场文件使用压缩的 VTK XML ImageData，`scalar` 表示扩散标量；定量误差仍由 Rust 验证，不从 ParaView 插值结果推断。当前入口固定生成 `64 × 64` 验证算例，不包含流动问题的密度或速度字段。
 
 ## 仓库结构
 
