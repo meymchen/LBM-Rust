@@ -16,10 +16,7 @@ use kuva::{
     prelude::{ColorMap, Heatmap, Layout, LinePlot, LineStyle, Plot, ScatterPlot},
     render::figure::Figure,
 };
-use lbm_core::{
-    D2Q9,
-    d2q9::{OPPOSITE, diffusion_equilibrium},
-};
+use lbm_core::{D2Q5, D2Q9, d2q5, d2q9};
 
 /// 网格收敛研究使用的格点数序列。
 ///
@@ -134,48 +131,61 @@ pub enum Boundary {
     Adiabatic,
 }
 
-/// 二维单松弛 D2Q9 标量扩散求解器。
-///
-/// 分布函数按 `AoS` 布局存放。这是有意保留的待优化基线：布局对比属于性能实践，
-/// 需要先有可比较的标量基线和一组固定的正确性测试。
-pub struct D2q9Solver {
+#[derive(Clone, Copy)]
+struct LatticeDescriptor<const Q: usize> {
+    velocities: [[i8; 2]; Q],
+    weights: [f64; Q],
+    opposite: [usize; Q],
+}
+
+const D2Q5_DESCRIPTOR: LatticeDescriptor<{ D2Q5::Q }> = LatticeDescriptor {
+    velocities: D2Q5::VELOCITIES,
+    weights: D2Q5::WEIGHTS,
+    opposite: d2q5::OPPOSITE,
+};
+
+const D2Q9_DESCRIPTOR: LatticeDescriptor<{ D2Q9::Q }> = LatticeDescriptor {
+    velocities: D2Q9::VELOCITIES,
+    weights: D2Q9::WEIGHTS,
+    opposite: d2q9::OPPOSITE,
+};
+
+struct ScalarDiffusionSolver2d<const Q: usize> {
     length: usize,
     omega: f64,
     boundary: Boundary,
-    distributions: Vec<[f64; D2Q9::Q]>,
-    post_collision: Vec<[f64; D2Q9::Q]>,
+    lattice: LatticeDescriptor<Q>,
+    distributions: Vec<[f64; Q]>,
+    post_collision: Vec<[f64; Q]>,
 }
 
-impl D2q9Solver {
-    /// 用平衡分布从给定标量场初始化。
-    ///
-    /// # Panics
-    ///
-    /// 当 `phi` 的长度不是 `length` 的平方时触发。
-    #[must_use]
-    pub fn from_scalar(phi: &[f64], length: usize, omega: f64, boundary: Boundary) -> Self {
+impl<const Q: usize> ScalarDiffusionSolver2d<Q> {
+    fn from_scalar(
+        phi: &[f64],
+        length: usize,
+        omega: f64,
+        boundary: Boundary,
+        lattice: LatticeDescriptor<Q>,
+    ) -> Self {
         assert_eq!(phi.len(), length * length, "标量场必须是正方形区域");
         Self {
             length,
             omega,
             boundary,
+            lattice,
             distributions: phi
                 .iter()
-                .map(|&scalar| diffusion_equilibrium(scalar))
+                .map(|&scalar| lattice.weights.map(|weight| weight * scalar))
                 .collect(),
-            post_collision: vec![[0.0; D2Q9::Q]; length * length],
+            post_collision: vec![[0.0; Q]; length * length],
         }
     }
 
-    /// 推进一个时间步，先本地碰撞再沿格线迁移。
-    ///
-    /// 迁移采用拉取（pull）方式：每个格点从上游取分布，缺失的入射分布在同一循环内
-    /// 按连接（link-wise）重构。这样角点不需要单独分支，凸角与直壁走同一条代码路径。
-    pub fn step(&mut self) {
+    fn step(&mut self) {
         for (site, cell) in self.distributions.iter().enumerate() {
             let scalar: f64 = cell.iter().sum();
-            let target = diffusion_equilibrium(scalar);
-            for direction in 0..D2Q9::Q {
+            let target = self.lattice.weights.map(|weight| weight * scalar);
+            for direction in 0..Q {
                 self.post_collision[site][direction] =
                     cell[direction] - self.omega * (cell[direction] - target[direction]);
             }
@@ -185,8 +195,8 @@ impl D2q9Solver {
         for row in 0..length {
             for column in 0..length {
                 let site = row * length + column;
-                for direction in 0..D2Q9::Q {
-                    let velocity = D2Q9::VELOCITIES[direction];
+                for direction in 0..Q {
+                    let velocity = self.lattice.velocities[direction];
                     let source = upstream(column, velocity[0], length).zip(upstream(
                         row,
                         velocity[1],
@@ -204,37 +214,162 @@ impl D2q9Solver {
         }
     }
 
-    /// 重构一条来自域外的入射分布。
     fn reconstruct(&self, site: usize, direction: usize, column: usize, row: usize) -> f64 {
         match self.boundary {
             Boundary::Periodic => {
-                let velocity = D2Q9::VELOCITIES[direction];
+                let velocity = self.lattice.velocities[direction];
                 let source_column = wrapped_upstream(column, velocity[0], self.length);
                 let source_row = wrapped_upstream(row, velocity[1], self.length);
                 self.post_collision[source_row * self.length + source_column][direction]
             }
             // 入射等于出射使法向一阶矩为零，把零通量放在半格距壁面处。
-            Boundary::Adiabatic => self.post_collision[site][OPPOSITE[direction]],
+            Boundary::Adiabatic => self.post_collision[site][self.lattice.opposite[direction]],
             Boundary::Dirichlet {
                 scalar,
                 reconstruction,
             } => match reconstruction {
                 Reconstruction::AntiBounceBack => {
-                    2.0 * D2Q9::WEIGHTS[direction] * scalar
-                        - self.post_collision[site][OPPOSITE[direction]]
+                    2.0 * self.lattice.weights[direction] * scalar
+                        - self.post_collision[site][self.lattice.opposite[direction]]
                 }
-                Reconstruction::Equilibrium => D2Q9::WEIGHTS[direction] * scalar,
+                Reconstruction::Equilibrium => self.lattice.weights[direction] * scalar,
             },
         }
+    }
+
+    fn scalar(&self) -> Vec<f64> {
+        self.distributions
+            .iter()
+            .map(|cell| cell.iter().sum())
+            .collect()
+    }
+}
+
+/// 二维单松弛 D2Q5 标量扩散求解器。
+///
+/// 分布函数按 `AoS` 布局存放，并复用与 D2Q9 相同的碰撞、迁移和边界重构内核。
+pub struct D2q5Solver(ScalarDiffusionSolver2d<{ D2Q5::Q }>);
+
+impl D2q5Solver {
+    /// 用平衡分布从给定标量场初始化。
+    ///
+    /// # Panics
+    ///
+    /// 当 `phi` 的长度不是 `length` 的平方时触发。
+    #[must_use]
+    pub fn from_scalar(phi: &[f64], length: usize, omega: f64, boundary: Boundary) -> Self {
+        Self(ScalarDiffusionSolver2d::from_scalar(
+            phi,
+            length,
+            omega,
+            boundary,
+            D2Q5_DESCRIPTOR,
+        ))
+    }
+
+    /// 推进一个时间步，先本地碰撞再沿格线迁移。
+    pub fn step(&mut self) {
+        self.0.step();
     }
 
     /// 返回当前标量场，即逐格点的零阶矩。
     #[must_use]
     pub fn scalar(&self) -> Vec<f64> {
-        self.distributions
-            .iter()
-            .map(|cell| cell.iter().sum())
-            .collect()
+        self.0.scalar()
+    }
+}
+
+/// 二维单松弛 D2Q9 标量扩散求解器。
+///
+/// 分布函数按 `AoS` 布局存放。这是有意保留的待优化基线：布局对比属于性能实践，
+/// 需要先有可比较的标量基线和一组固定的正确性测试。
+pub struct D2q9Solver(ScalarDiffusionSolver2d<{ D2Q9::Q }>);
+
+impl D2q9Solver {
+    /// 用平衡分布从给定标量场初始化。
+    ///
+    /// # Panics
+    ///
+    /// 当 `phi` 的长度不是 `length` 的平方时触发。
+    #[must_use]
+    pub fn from_scalar(phi: &[f64], length: usize, omega: f64, boundary: Boundary) -> Self {
+        Self(ScalarDiffusionSolver2d::from_scalar(
+            phi,
+            length,
+            omega,
+            boundary,
+            D2Q9_DESCRIPTOR,
+        ))
+    }
+
+    /// 推进一个时间步，先本地碰撞再沿格线迁移。
+    ///
+    /// 迁移采用拉取（pull）方式：每个格点从上游取分布，缺失的入射分布在同一循环内
+    /// 按连接（link-wise）重构。这样角点不需要单独分支，凸角与直壁走同一条代码路径。
+    pub fn step(&mut self) {
+        self.0.step();
+    }
+
+    /// 返回当前标量场，即逐格点的零阶矩。
+    #[must_use]
+    pub fn scalar(&self) -> Vec<f64> {
+        self.0.scalar()
+    }
+}
+
+/// D2Q5 每格点保存一组离散分布函数所需的字节数。
+pub const D2Q5_DISTRIBUTION_BYTES_PER_SITE: usize = std::mem::size_of::<[f64; D2Q5::Q]>();
+
+/// D2Q9 每格点保存一组离散分布函数所需的字节数。
+pub const D2Q9_DISTRIBUTION_BYTES_PER_SITE: usize = std::mem::size_of::<[f64; D2Q9::Q]>();
+
+/// 当前 D2Q5 求解器双缓冲每格点所需的字节数，不含固定大小的求解器元数据。
+pub const D2Q5_WORKING_BYTES_PER_SITE: usize = 2 * D2Q5_DISTRIBUTION_BYTES_PER_SITE;
+
+/// 当前 D2Q9 求解器双缓冲每格点所需的字节数，不含固定大小的求解器元数据。
+pub const D2Q9_WORKING_BYTES_PER_SITE: usize = 2 * D2Q9_DISTRIBUTION_BYTES_PER_SITE;
+
+/// 一个二维问题规模下的 D2Q5 与 D2Q9 性能统计。
+pub struct LatticePerformanceRow {
+    /// 正方形区域的单边格点数。
+    pub length: usize,
+    /// 每个计时样本包含的演化步数。
+    pub steps: usize,
+    /// 每种格子的计时样本数。
+    pub samples: usize,
+    /// D2Q5 每格点每步耗时的中位数，单位为纳秒。
+    pub d2q5_nanoseconds_per_site_step: f64,
+    /// D2Q5 每格点每步耗时的中位绝对偏差，单位为纳秒。
+    pub d2q5_mad_nanoseconds_per_site_step: f64,
+    /// D2Q9 每格点每步耗时的中位数，单位为纳秒。
+    pub d2q9_nanoseconds_per_site_step: f64,
+    /// D2Q9 每格点每步耗时的中位绝对偏差，单位为纳秒。
+    pub d2q9_mad_nanoseconds_per_site_step: f64,
+}
+
+impl LatticePerformanceRow {
+    /// 区域中的格点总数。
+    #[must_use]
+    pub const fn sites(&self) -> usize {
+        self.length * self.length
+    }
+
+    /// D2Q5 吞吐量，单位为百万格点更新每秒。
+    #[must_use]
+    pub fn d2q5_mlups(&self) -> f64 {
+        1_000.0 / self.d2q5_nanoseconds_per_site_step
+    }
+
+    /// D2Q9 吞吐量，单位为百万格点更新每秒。
+    #[must_use]
+    pub fn d2q9_mlups(&self) -> f64 {
+        1_000.0 / self.d2q9_nanoseconds_per_site_step
+    }
+
+    /// 当前实现中 D2Q5 相对 D2Q9 的吞吐加速比。
+    #[must_use]
+    pub fn d2q5_speedup_over_d2q9(&self) -> f64 {
+        self.d2q9_nanoseconds_per_site_step / self.d2q5_nanoseconds_per_site_step
     }
 }
 
@@ -655,6 +790,45 @@ pub fn render_comparison_svg(comparison: &FieldComparison, rows: &[ConvergenceRo
         松弛率为一时体内的九点四阶格式被二阶壁面拉低到三阶。";
 
     add_accessibility_metadata(svg, "二维扩散的有限差分与 D2Q9 LBM 对比", description)
+}
+
+/// 使用 Kuva 生成 D2Q5 与 D2Q9 当前实现的单线程吞吐量数据图。
+#[must_use]
+pub fn render_lattice_performance_svg(rows: &[LatticePerformanceRow], environment: &str) -> String {
+    let throughput = |select: fn(&LatticePerformanceRow) -> f64| -> Vec<(f64, f64)> {
+        rows.iter()
+            .map(|row| (row.sites() as f64, select(row)))
+            .collect()
+    };
+    let d2q5 = LinePlot::new()
+        .with_data(throughput(LatticePerformanceRow::d2q5_mlups))
+        .with_color("#2c7a4b")
+        .with_stroke_width(2.0)
+        .with_legend("D2Q5");
+    let d2q9 = LinePlot::new()
+        .with_data(throughput(LatticePerformanceRow::d2q9_mlups))
+        .with_color("#a74428")
+        .with_stroke_width(2.0)
+        .with_legend("D2Q9");
+    let plots = vec![Plot::Line(d2q5), Plot::Line(d2q9)];
+    let layout = Layout::auto_from_plots(&plots)
+        .with_title("单线程发布构建吞吐量")
+        .with_x_label("格点总数 N²")
+        .with_y_label("吞吐量（MLUPS）")
+        .with_log_scale();
+    let scene = Figure::new(1, 1)
+        .with_plots(vec![plots])
+        .with_layouts(vec![layout])
+        .with_cell_size(760.0, 420.0)
+        .render();
+    let svg = SvgBackend.render_scene(&scene);
+    let description = format!(
+        "D2Q5 与 D2Q9 当前 Rust 实现的单线程二维扩散吞吐量，单位为 MLUPS。\
+         每格点一组离散分布分别占 {D2Q5_DISTRIBUTION_BYTES_PER_SITE} 与 \
+         {D2Q9_DISTRIBUTION_BYTES_PER_SITE} 字节；当前双缓冲工作存储分别占 \
+         {D2Q5_WORKING_BYTES_PER_SITE} 与 {D2Q9_WORKING_BYTES_PER_SITE} 字节。{environment}"
+    );
+    add_accessibility_metadata(svg, "D2Q5 与 D2Q9 二维扩散性能对比", &description)
 }
 
 fn error_field_panel(comparison: &FieldComparison) -> (Vec<Plot>, Layout) {

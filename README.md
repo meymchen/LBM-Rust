@@ -14,7 +14,7 @@ LBM-Rust 使用 Rust 学习和实现 Lattice Boltzmann Method（LBM），并使�
 
 当前仓库是可扩展的计算实践脚手架，包含：
 
-- D2Q9 离散速度、权重和平衡分布函数；
+- D2Q5 与 D2Q9 离散速度、权重和平衡分布函数；
 - 验证归一化、对称性、质量与动量恢复的 Rust 测试；
 - 从 Rust 程序生成确定性文档数据的示例；
 - 使用 Typst 原生矢量图和 Rust 生成数据图的可复现插图；
@@ -75,6 +75,7 @@ make paraview-smoke
 - `crates/lbm-core`：可复用的 LBM 基础库；
 - `crates/lbm-vtk`：二维格子场快照和 VTK XML ImageData 导出；
 - `examples/d2q9-equilibrium`：确定性数据生成程序；
+- `examples/d2q9-diffusion`：D2Q5／D2Q9 二维扩散验证与发布模式性能基准；
 - `examples/vtk-interop`：VTK／ParaView 互操作原型与小型场夹具；
 - `book`：可完整出版的 Typst 书稿、章节和生成数据；
 - `book/figures`：可复用的 Typst 图形组件、章节图源和插图维护约定；

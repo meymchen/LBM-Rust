@@ -1,7 +1,8 @@
 [package]
 name = "d2q9-diffusion"
 version = "0.1.0"
-description = "Compare explicit finite differences and D2Q9 LBM on the 2D diffusion equation"
+description = "Validate and compare D2Q5 and D2Q9 LBM on the 2D diffusion equation"
+default-run = "d2q9-diffusion"
 publish = false
 edition.workspace = true
 license.workspace = true
