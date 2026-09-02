@@ -1,0 +1,15 @@
+[package]
+name = "d2q9-diffusion"
+version = "0.1.0"
+description = "Compare explicit finite differences and D2Q9 LBM on the 2D diffusion equation"
+publish = false
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+kuva = "0.5"
+lbm-core = { path = "../../crates/lbm-core" }
+
+[lints]
+workspace = true

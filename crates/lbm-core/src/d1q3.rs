@@ -1,3 +1,5 @@
+//! 一维三速（D1Q3）离散速度模型与标量扩散平衡分布。
+
 /// 一维三速（D1Q3）离散速度模型。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct D1Q3;

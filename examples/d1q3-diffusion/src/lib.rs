@@ -12,7 +12,7 @@ use kuva::{
     prelude::{Layout, LinePlot, LineStyle, Plot, ScatterPlot},
     render::figure::Figure,
 };
-use lbm_core::{D1Q3, diffusion_equilibrium};
+use lbm_core::{D1Q3, d1q3::diffusion_equilibrium};
 
 /// 基准初值的背景标量。
 pub const BACKGROUND: f64 = 1.0;

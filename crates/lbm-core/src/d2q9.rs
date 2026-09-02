@@ -1,3 +1,5 @@
+//! 二维九速（D2Q9）离散速度模型、标量扩散平衡分布与流动平衡分布。
+
 /// 二维九速（D2Q9）离散速度模型。
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct D2Q9;
@@ -36,13 +38,28 @@ impl D2Q9 {
     pub const SPEED_OF_SOUND_SQUARED: f64 = 1.0 / 3.0;
 }
 
-/// 计算 D2Q9 的二阶低马赫数平衡分布。
+/// 与 [`D2Q9::VELOCITIES`] 一一对应的反向离散速度索引，即 `c[OPPOSITE[i]] == -c[i]`。
+///
+/// 反弹与反弹跳等按连接（link-wise）的边界重构需要成对访问出射与入射分布。
+pub const OPPOSITE: [usize; D2Q9::Q] = [0, 3, 4, 1, 2, 7, 8, 5, 6];
+
+/// 计算 D2Q9 的标量扩散平衡分布，即各方向分布等于权重乘以标量。
+///
+/// `scalar` 是格点上的扩散标量（浓度或温度）。扩散模型只守恒零阶矩，
+/// 平衡分布不携带通量；扩散通量完全由非平衡一阶矩给出。
+#[must_use]
+#[inline]
+pub fn diffusion_equilibrium(scalar: f64) -> [f64; D2Q9::Q] {
+    D2Q9::WEIGHTS.map(|weight| weight * scalar)
+}
+
+/// 计算 D2Q9 的二阶低马赫数流动平衡分布。
 ///
 /// `density` 是密度，`velocity` 是格子单位下的二维宏观速度。
 /// 返回值使用固定长度数组，计算过程不进行堆分配，可作为并行化与向量化实现的标量基线。
 #[must_use]
 #[inline]
-pub fn equilibrium(density: f64, velocity: [f64; 2]) -> [f64; D2Q9::Q] {
+pub fn flow_equilibrium(density: f64, velocity: [f64; 2]) -> [f64; D2Q9::Q] {
     let velocity_squared = velocity[0].mul_add(velocity[0], velocity[1] * velocity[1]);
 
     std::array::from_fn(|index| {
@@ -59,7 +76,7 @@ pub fn equilibrium(density: f64, velocity: [f64; 2]) -> [f64; D2Q9::Q] {
 
 #[cfg(test)]
 mod tests {
-    use super::{D2Q9, equilibrium};
+    use super::{D2Q9, OPPOSITE, diffusion_equilibrium, flow_equilibrium};
 
     const TOLERANCE: f64 = 1.0e-12;
 
@@ -84,10 +101,58 @@ mod tests {
     }
 
     #[test]
-    fn equilibrium_recovers_density_and_momentum() {
+    fn opposite_indices_reverse_every_discrete_velocity() {
+        for (index, opposite) in OPPOSITE.iter().enumerate() {
+            assert_eq!(
+                D2Q9::VELOCITIES[index],
+                D2Q9::VELOCITIES[*opposite].map(|component| -component)
+            );
+            assert_eq!(OPPOSITE[*opposite], index);
+        }
+    }
+
+    #[test]
+    fn diffusion_equilibrium_recovers_scalar_moments() {
+        let scalar = 1.31;
+        let distributions = diffusion_equilibrium(scalar);
+
+        assert_close(distributions.iter().sum(), scalar);
+
+        for axis in 0..2 {
+            let first_moment: f64 = distributions
+                .iter()
+                .zip(D2Q9::VELOCITIES)
+                .map(|(distribution, velocity)| distribution * f64::from(velocity[axis]))
+                .sum();
+            assert_close(first_moment, 0.0);
+        }
+
+        // 二阶矩必须是各向同性的 c_s^2 phi delta_(alpha beta)，
+        // 否则 Chapman-Enskog 展开给不出各向同性的扩散系数。
+        for row in 0..2 {
+            for column in 0..2 {
+                let second_moment: f64 = distributions
+                    .iter()
+                    .zip(D2Q9::VELOCITIES)
+                    .map(|(distribution, velocity)| {
+                        distribution * f64::from(velocity[row]) * f64::from(velocity[column])
+                    })
+                    .sum();
+                let expected = if row == column {
+                    D2Q9::SPEED_OF_SOUND_SQUARED * scalar
+                } else {
+                    0.0
+                };
+                assert_close(second_moment, expected);
+            }
+        }
+    }
+
+    #[test]
+    fn flow_equilibrium_recovers_density_and_momentum() {
         let density = 1.17;
         let velocity = [0.08, -0.03];
-        let distributions = equilibrium(density, velocity);
+        let distributions = flow_equilibrium(density, velocity);
 
         assert_close(distributions.iter().sum(), density);
 
@@ -102,9 +167,9 @@ mod tests {
     }
 
     #[test]
-    fn equilibrium_at_rest_is_isotropic() {
+    fn flow_equilibrium_at_rest_is_isotropic() {
         let density = 0.93;
-        let distributions = equilibrium(density, [0.0, 0.0]);
+        let distributions = flow_equilibrium(density, [0.0, 0.0]);
 
         for (distribution, weight) in distributions.iter().zip(D2Q9::WEIGHTS) {
             assert_close(*distribution, density * weight);
