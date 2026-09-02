@@ -767,22 +767,25 @@ pub fn field_comparison() -> FieldComparison {
     }
 }
 
-/// 使用 Kuva 生成误差场、中心线型线与网格收敛的三联数据图。
+/// 使用 Kuva 生成误差场、中心线误差与网格收敛数据图。
 #[must_use]
 pub fn render_comparison_svg(comparison: &FieldComparison, rows: &[ConvergenceRow]) -> String {
     let (error_plots, error_layout) = error_field_panel(comparison);
     let (centerline_plots, centerline_layout) = centerline_error_panel(comparison);
     let (convergence_plots, convergence_layout) = convergence_panel(rows);
 
-    let scene = Figure::new(1, 3)
+    let scene = Figure::new(2, 2)
+        .with_structure(vec![vec![0, 1], vec![2], vec![3]])
         .with_plots(vec![error_plots, centerline_plots, convergence_plots])
         .with_layouts(vec![error_layout, centerline_layout, convergence_layout])
         .with_labels_lowercase()
         .with_cell_size(430.0, 400.0)
+        .with_row_height(0, 500.0)
         .render();
     let svg = SvgBackend.render_scene(&scene);
     let description = "二维方形域齐次 Dirichlet 扩散的有限差分与 D2Q9 LBM 对比。\
-        子图 a 是反弹跳边界下的相对误差场：误差符号处处一致，峰值在区域中部，\
+        子图 a 单独列在第一行，横纵坐标按一比一显示反弹跳边界下的相对误差场：\
+        误差符号处处一致，峰值在区域中部，\
         壁面一圈反而最小，说明反弹跳没有产生边界层误差，残差来自体内截断误差；\
         子图 b 是同一物理时刻的中心线相对误差，反弹跳与有限差分衰减偏快而误差为负，\
         平衡覆盖把有效壁面推到格点外约零点六格距、衰减偏慢而误差为正且高一个量级；\
@@ -849,7 +852,8 @@ fn error_field_panel(comparison: &FieldComparison) -> (Vec<Plot>, Layout) {
     let layout = Layout::auto_from_plots(&plots)
         .with_title("相对误差场（反弹跳，ω = 1.5，N = 64）")
         .with_x_label("格点坐标 x/Δx")
-        .with_y_label("格点坐标 y/Δx");
+        .with_y_label("格点坐标 y/Δx")
+        .with_equal_aspect();
     (plots, layout)
 }
 

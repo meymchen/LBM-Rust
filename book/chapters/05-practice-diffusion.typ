@@ -478,14 +478,14 @@ $ cal(E)_"FTCS"
 
 $omega=1$ 的 D2Q9 不等于五点 FTCS。此时碰撞后的每个分量恰为 $w_i phi$；把迁移到同一格点的九个分量相加，可写成九点格式
 
-$ 36 (phi_(j,l)^(n+1) - phi_(j,l)^n)
-= 4 (
-  phi_(j+1,l)^n + phi_(j-1,l)^n
-  + phi_(j,l+1)^n + phi_(j,l-1)^n
-)
-+ phi_(j+1,l+1)^n + phi_(j+1,l-1)^n
-+ phi_(j-1,l+1)^n + phi_(j-1,l-1)^n
-- 20 phi_(j,l)^n. $ <d2q9-omega-one-stencil>
+$
+36 (phi_(j,l)^(n+1) - phi_(j,l)^n)
+&= 4 (phi_(j+1,l)^n + phi_(j-1,l)^n) \
+&quad + 4 (phi_(j,l+1)^n + phi_(j,l-1)^n) \
+&quad + phi_(j+1,l+1)^n + phi_(j+1,l-1)^n \
+&quad + phi_(j-1,l+1)^n + phi_(j-1,l-1)^n \
+&quad - 20 phi_(j,l)^n.
+$ <d2q9-omega-one-stencil>
 
 对右端作 Taylor 展开，四次项组合为 $(partial_x^4+2 partial_x^2 partial_y^2+partial_y^4)/2=nabla^4/2$，所以
 
@@ -498,7 +498,7 @@ $ phi^(n+1) - phi^n
 
 #figure(
   image("../assets/generated/d2q9-diffusion.svg", width: 100%),
-  caption: [数据图：二维方形域齐次 Dirichlet 扩散的 FTCS 与 D2Q9 LBM 对比。子图 a 给出 $N=64$、$omega=1.5$、反弹跳边界时的相对误差场；误差同号且内部峰值约为壁面一圈最大值的 $13.6$ 倍，没有出现主导误差的边界层。子图 b 比较中心线相对误差，反弹跳与 FTCS 衰减偏快，平衡覆盖衰减偏慢且误差高一个量级。子图 c 固定 $t/t_D=1/48$，比较 $N=16$、$32$、$64$、$128$ 的相对归一化 L2 误差及一至三阶参考线。原始 CSV 和 SVG 由 `examples/d2q9-diffusion` 以发布构建生成。],
+  caption: [数据图：二维方形域齐次 Dirichlet 扩散的 FTCS 与 D2Q9 LBM 对比。子图 a 单独列在第一行，横纵坐标采用 $1:1$ 比例；它给出 $N=64$、$omega=1.5$、反弹跳边界时的相对误差场，误差同号且内部峰值约为壁面一圈最大值的 $13.6$ 倍，没有出现主导误差的边界层。子图 b 比较中心线相对误差，反弹跳与 FTCS 衰减偏快，平衡覆盖衰减偏慢且误差高一个量级。子图 c 固定 $t/t_D=1/48$，比较 $N=16$、$32$、$64$、$128$ 的相对归一化 L2 误差及一至三阶参考线。原始 CSV 和 SVG 由 `examples/d2q9-diffusion` 以发布构建生成。],
 ) <d2q9-diffusion-plot>
 
 边界阶数必须从包含壁面的收敛结果判断。$omega=1.5$ 时，反弹跳从 $N=64$ 到 $128$ 的实测阶为 $2.007$，符合半格距壁面的二阶表现；平衡覆盖的实测一阶只有 $0.969$。中心线误差的符号还表明平衡覆盖使衰减偏慢：用 $N=64$ 的振幅偏差拟合，有效壁面约在格点外 $0.61#dx$，而反弹跳对应 $0.5#dx$。前者偏离半格距的常数约为 $0.11#dx$，这是数据拟合结果，不是边界公式的解析结论。
