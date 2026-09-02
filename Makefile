@@ -6,7 +6,8 @@ PDF := build/lbm-rust.pdf
 GENERATED_DIR := book/assets/generated
 CHECK_GENERATED_DIR := build/generated-check
 GENERATED_FILES := d2q9-equilibrium.csv d2q9-equilibrium.svg \
-	d1q3-diffusion-profiles.csv d1q3-diffusion-convergence.csv d1q3-diffusion.svg
+	d1q3-diffusion-profiles.csv d1q3-diffusion-convergence.csv d1q3-diffusion.svg \
+	d2q9-diffusion-profiles.csv d2q9-diffusion-convergence.csv d2q9-diffusion.svg
 VTK_FIXTURE_DIR := examples/vtk-interop/fixtures/reference
 PARAVIEW_SMOKE_DIR := build/paraview-smoke
 
@@ -37,6 +38,9 @@ regenerate:
 	set -eu
 	cargo run --quiet -p d2q9-equilibrium -- "$(GENERATED_DIR)"
 	cargo run --quiet -p d1q3-diffusion -- "$(GENERATED_DIR)"
+	# 二维收敛研究的代价随格点数四次方增长，未优化时无法在常规构建中完成。
+	# 优化等级不改变 IEEE 语义，生成结果与未优化构建逐位相同。
+	cargo run --release --quiet -p d2q9-diffusion -- "$(GENERATED_DIR)"
 	cargo run --quiet -p vtk-interop -- --force "$(VTK_FIXTURE_DIR)"
 
 diffusion-bench:
@@ -110,6 +114,7 @@ check-generated:
 	mkdir -p "$(CHECK_GENERATED_DIR)"
 	cargo run --quiet -p d2q9-equilibrium -- "$(CHECK_GENERATED_DIR)"
 	cargo run --quiet -p d1q3-diffusion -- "$(CHECK_GENERATED_DIR)"
+	cargo run --release --quiet -p d2q9-diffusion -- "$(CHECK_GENERATED_DIR)"
 	cargo run --quiet -p vtk-interop -- --force "$(CHECK_GENERATED_DIR)/vtk-interop"
 	for file in $(GENERATED_FILES); do
 		diff -u "$(GENERATED_DIR)/$$file" "$(CHECK_GENERATED_DIR)/$$file"

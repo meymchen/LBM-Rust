@@ -81,6 +81,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "d2q9-diffusion"
+version = "0.1.0"
+dependencies = [
+ "kuva",
+ "lbm-core",
+]
+
+[[package]]
 name = "d2q9-equilibrium"
 version = "0.1.0"
 dependencies = [

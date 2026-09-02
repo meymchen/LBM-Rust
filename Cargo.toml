@@ -3,6 +3,7 @@ members = [
     "crates/lbm-core",
     "crates/lbm-vtk",
     "examples/d1q3-diffusion",
+    "examples/d2q9-diffusion",
     "examples/d2q9-equilibrium",
     "examples/vtk-interop",
 ]
@@ -12,6 +13,11 @@ resolver = "2"
 edition = "2024"
 license = "Apache-2.0"
 repository = "https://github.com/meymchen/LBM-Rust"
+
+# 收敛研究在测试中演化到 N = 64，未优化时比优化慢二十余倍。
+# 优化等级不影响 IEEE 语义，结果逐位相同；debug-assertions 与溢出检查仍继承 dev。
+[profile.test]
+opt-level = 2
 
 [workspace.lints.rust]
 missing_docs = "warn"
