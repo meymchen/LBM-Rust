@@ -461,10 +461,49 @@ Robin 条件 $a phi + b partial_n phi = c$ 混合了值与通量，可由上述�
 
 === 二维经典算例 <diffusion-2d-cases>
 
-- 周期域模态衰减：$phi = sin(k_x x) sin(k_y y)$，分别取轴向与对角波数，检验各向同性与有效扩散系数。
-- 双平板稳态导热：上下壁 Dirichlet，可加均匀源，解析型线分别为直线与抛物线@steady-source-solution，检验 Dirichlet 重构的壁面位置。
-- 一绝热一恒温通道：一侧 Neumann、一侧 Dirichlet，稳态仍为线性型线，但总量守恒只在绝热侧成立，可同时检验两类边界。
-- 带角点的区域：在上述算例中截出矩形域，检验角点与直壁的一致性。
+仓库中的 `examples/d2q9-diffusion` 把上述检验合并到一个齐次 Dirichlet 方形域中。$N times N$ 个格点位于 $x=(j+1/2)#dx$、$y=(l+1/2)#dx$，四面壁都在最外层格点之外半个格距，因而域长 $L=N#dx$。初值取单模态 $phi(x,y,0)=sin(pi x/L) sin(pi y/L)$，解析解只让振幅按 $exp[-2D(pi/L)^2t]$ 衰减。这个问题同时经过四面直壁和四个角点，又没有角点奇性；固定 $omega$ 并令步数随 $N^2$ 增长，就能在同一无量纲时刻比较体内格式与边界重构。
+
+先看五点 FTCS。保持扩散数 $r=D#dt/#dx^2$ 不变并消去时间导数后，其领先局部截断误差为
+
+$ cal(E)_"FTCS"
+= D #dx^2 [
+  (r/2 - 1/12) (partial_x^4 + partial_y^4)
+  + r partial_x^2 partial_y^2
+] phi
++ O(#dx^4). $ <ftcs-2d-truncation-error>
+
+这里 $cal(E)$ 表示离散格式代回连续方程后留下的局部截断误差。
+#metadata("sym-truncation-error") <sym-truncation-error>
+要消去纯四阶导数项必须取 $r=1/6$，要消去交叉项却必须取 $r=0$，两者不可能同时成立。五点空间离散不产生 $partial_x^2 partial_y^2$，而二维时间离散必然产生它；一维中不存在这个交叉项，所以一维的 $r=1/6$ 魔数不能外推到二维。图@d2q9-diffusion-plot 中 FTCS 的 $64 arrow 128$ 实测阶为 $2.000$，与这个结论一致。
+
+$omega=1$ 的 D2Q9 不等于五点 FTCS。此时碰撞后的每个分量恰为 $w_i phi$；把迁移到同一格点的九个分量相加，可写成九点格式
+
+$
+36 (phi_(j,l)^(n+1) - phi_(j,l)^n)
+&= 4 (phi_(j+1,l)^n + phi_(j-1,l)^n) \
+&quad + 4 (phi_(j,l+1)^n + phi_(j,l-1)^n) \
+&quad + phi_(j+1,l+1)^n + phi_(j+1,l-1)^n \
+&quad + phi_(j-1,l+1)^n + phi_(j-1,l-1)^n \
+&quad - 20 phi_(j,l)^n.
+$ <d2q9-omega-one-stencil>
+
+对右端作 Taylor 展开，四次项组合为 $(partial_x^4+2 partial_x^2 partial_y^2+partial_y^4)/2=nabla^4/2$，所以
+
+$ phi^(n+1) - phi^n
+= #dx^2/6 nabla^2 phi
++ #dx^4/72 nabla^4 phi
++ O(#dx^6). $ <d2q9-omega-one-fourth-order>
+
+在格子单位下 $D=1/6$，@d2q9-omega-one-fourth-order 与扩散方程精确时间演化的展开直到四阶完全相同：交叉项没有被忽略，而是与轴向四阶项组成各向同性的双调和算子。因此该参数下的 D2Q9 体内格式为四阶，四阶项没有取向偏差；周期域实测阶为 $4.001$。
+
+#figure(
+  image("../assets/generated/d2q9-diffusion.svg", width: 100%),
+  caption: [数据图：二维方形域齐次 Dirichlet 扩散的 FTCS 与 D2Q9 LBM 对比。子图 a 单独列在第一行，横纵坐标采用 $1:1$ 比例；它给出 $N=64$、$omega=1.5$、反弹跳边界时的相对误差场，误差同号且内部峰值约为壁面一圈最大值的 $13.6$ 倍，没有出现主导误差的边界层。子图 b 比较中心线相对误差，反弹跳与 FTCS 衰减偏快，平衡覆盖衰减偏慢且误差高一个量级。子图 c 固定 $t/t_D=1/48$，比较 $N=16$、$32$、$64$、$128$ 的相对归一化 L2 误差及一至三阶参考线。原始 CSV 和 SVG 由 `examples/d2q9-diffusion` 以发布构建生成。],
+) <d2q9-diffusion-plot>
+
+边界阶数必须从包含壁面的收敛结果判断。$omega=1.5$ 时，反弹跳从 $N=64$ 到 $128$ 的实测阶为 $2.007$，符合半格距壁面的二阶表现；平衡覆盖的实测一阶只有 $0.969$。中心线误差的符号还表明平衡覆盖使衰减偏慢：用 $N=64$ 的振幅偏差拟合，有效壁面约在格点外 $0.61#dx$，而反弹跳对应 $0.5#dx$。前者偏离半格距的常数约为 $0.11#dx$，这是数据拟合结果，不是边界公式的解析结论。
+
+当 $omega=1$ 与反弹跳组合时，体内四阶格式和二阶壁面在全域 L2 误差中给出 $2.984$ 的收敛阶。现有推导只证明体内四阶，尚缺少说明全域阶数的反弹跳边界层分析；这个整体三阶仅有实测依据，在这里不作定理主张。一般松弛率下的反弹跳二阶、平衡覆盖一阶以及这个特殊组合的整体三阶共同说明：报告 LBM 精度时，格子、松弛率、边界规则和误差范数缺一不可。
 
 === D2Q5 与 D2Q9 性能对比 <diffusion-2d-performance>
 
